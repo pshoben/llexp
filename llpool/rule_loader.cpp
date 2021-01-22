@@ -70,7 +70,7 @@ namespace llutils {
 	//}
 }
 
-void main(void)
+int main(void)
 {
 	vector<string> test =     { "rule1",
 								"rule2",

@@ -17,7 +17,7 @@ namespace llutils {
 	uint32_t* ArenaPool::dup_word(uint32_t val)
 	{
 		uint32_t* new_word = allocator.allocate(1);
-		if (new_word) { [[likely]]
+		if (new_word) [[likely]] {
 			*new_word = val;
 		}
 		return new_word;
@@ -25,7 +25,7 @@ namespace llutils {
 	uint32_t ArenaPool::dup_word_index(uint32_t val)
 	{
 		uint32_t* new_word = dup_word(val);
-		if (new_word) {[[likely]]
+		if (new_word) [[likely]] {
 			// convert address back to index
 			return (uint32_t)((uint32_t*)new_word - (uint32_t*)&(allocator.buffer));
 		} else {
@@ -37,7 +37,7 @@ namespace llutils {
 	{
 		uint32_t padded_size_words = ((--len) >> 2) + 1; // size in words 
 		uint32_t* new_cstring_addr = allocator.allocate(padded_size_words);
-		if (new_cstring_addr) {[[likely]]
+		if (new_cstring_addr) [[likely]] {
 			memcpy(new_cstring_addr, str, len);
 		}
 		return new_cstring_addr;

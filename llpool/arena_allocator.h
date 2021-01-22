@@ -1,6 +1,8 @@
 #ifndef ARENA_ALLOCATOR_H
 #define ARENA_ALLOCATOR_H
 #include <cstdint>
+#include <cstring>
+
 
 namespace llutils {
 // properties

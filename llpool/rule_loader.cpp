@@ -77,5 +77,5 @@ int main(void)
 								"rule3 rule4",
 								"\"abc\" \"def\" \"ghi\" rule5" };
 	llutils::Rule * rule = llutils::make_rule(test);
-	cout << "hello world\n";
+	//cout << "hello world\n";
 }

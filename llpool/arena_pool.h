@@ -16,7 +16,7 @@ namespace llutils {
 
 	class RuleEntry {
 	public:
-		RuleEntry(bool p_is_string, string p_val) : is_string(p_is_string), val(p_val) { print(); }
+		RuleEntry(bool p_is_string, string p_val) : is_string(p_is_string), val(p_val) { /*print();*/ }
 		bool is_string; // true if val is a leaf string
 		string val; // q-name/VB
 		void print() {
@@ -31,8 +31,7 @@ namespace llutils {
 		string answer; // christopher-columbus
 		vector<vector<RuleEntry>> rule_lines;
 		void print() {
-			cout << "rule:\n";
-			cout << "name: " << this->name << "\n";
+			cout << "\n\n" << this->name << ":\n";
 			for (auto rule_line : this->rule_lines) {
 				cout << "  ";
 				for (auto token : rule_line) {
@@ -76,7 +75,6 @@ namespace llutils {
 		uint32_t create_rule_index_pass1(Rule & rule);
 		uint32_t create_rule_index_pass2(Rule & rule);
 		uint32_t create_rule_index_pass3(Rule & rule);
-
 	};
 };
 #endif

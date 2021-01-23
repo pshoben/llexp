@@ -52,8 +52,9 @@ namespace llutils {
 		// for debug only:
 		std::unordered_map<string, size_t> string_to_hash;
 
-		void print(void);
-
+		// display the value at the index - if full is true print full rule otherwise print name only
+		string print_at(uint32_t index, bool full);
+		
 		uint32_t* dup_word(uint32_t val);
 		uint32_t dup_word_index(uint32_t val);
 

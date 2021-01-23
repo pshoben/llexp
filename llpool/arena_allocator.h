@@ -25,7 +25,8 @@ template<uint32_t SIZE = 10 * 1024 *1024>
 class ArenaAllocator {
 public:
 	uint32_t buffer[SIZE];
-	
+	uint32_t next_free_index; // index to allocate at
+
 	ArenaAllocator()
 	:next_free_index(4) // first four words reserved
 	{
@@ -79,8 +80,6 @@ public:
 			memset(next_free_index, 0, num_words_to_release * 4);
 		}
 	}
-private:
-	uint32_t next_free_index; // index to allocate at
 };
 }
 #endif

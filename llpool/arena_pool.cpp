@@ -13,6 +13,30 @@ using std::cout;
 
 namespace llutils {
 
+	string ArenaPool::print_at(uint32_t index, bool full)
+	{
+		string ret;
+		if (index >= allocator.next_free_index) {
+			return "out of bounds";
+		}
+		if (index < 4) {
+			return "too low - may not be magic number";
+		}
+		char* p = (char*)&(allocator.buffer[index]);
+		if (*p == 0x1) {
+			// start of rule marker
+			uint32_t rule_name_index = allocator.buffer[index + 1];
+			return "rule : " + print_at(rule_name_index, full);
+		}
+		if (*p < 0x4) {
+			// magic number end of list etc.
+			return "magic number";
+		}
+		//size_t len = strlen(p);
+		// not a rule: treat as a string
+		return string(p);
+	}
+
 	// len must include null terminator (therefore min is 1)
 	uint32_t* ArenaPool::dup_word(uint32_t val)
 	{
@@ -103,6 +127,10 @@ namespace llutils {
 	// 3rd pass : populate each of the placeholders with the correct index of the child rule (now that it is known after 2nd pass)
 	uint32_t ArenaPool::create_rule_index_pass1(Rule& rule)
 	{
+		// store the rule name in the string pool
+		if (!get_or_create_string_index(rule.name.c_str(), rule.name.size() + 1)) {
+			return 0; // failure
+		}
 		// first pass: create any new strings in the pool (before the start of the rule proper)
 		for (auto rule_line : rule.rule_lines) {
 			for (auto rule_line_entry : rule_line) {
@@ -131,6 +159,11 @@ namespace llutils {
 		// allocate the rule header info
 		uint32_t new_rule_index = create_rule_index((const char*)rule.name.c_str(), rule.name.size() + 1);
 		if (!new_rule_index)
+			return 0; // failure
+
+		// store the index of the rule name string
+		uint32_t rule_name_string_index = get_or_create_string_index(rule.name.c_str(), rule.name.size() + 1);
+		if (!dup_word_index(rule_name_string_index))
 			return 0; // failure
 
 		//uint32_t new_rule_tag_index = dup_word_index(new_rule_tag_string_index);
@@ -165,7 +198,12 @@ namespace llutils {
 			return 0; // failure
 		}
 		uint32_t pos = it->second + 1; // skip the start rule marker
-		cout << " rule \"" << rule.name << "\" found at pos " << pos << "\n";
+		cout << " rule \"" << rule.name << "\" found at start pos " << (pos-1) << " with marker " << allocator.buffer[pos-1] << "\n";
+
+		uint32_t child_index = allocator.buffer[pos];
+		cout << " at pos " << pos << " got rule name string ref : " << child_index << " " << print_at(child_index, false) << "\n";
+		pos++;
+
 		// third pass: populate the child references in place with the found index
 		for (auto rule_line : rule.rule_lines) {
 			for (auto rule_line_entry : rule_line) {
@@ -177,17 +215,19 @@ namespace llutils {
 						return 0; // failure - child string not found
 					}
 					uint32_t child_index = it->second;
-					cout << " at pos " << pos << " : target string " << rule_line_entry.val << " = " << child_index << "\n";
+					cout << " at pos " << pos << " : setting target string " << rule_line_entry.val << " = " << child_index << " " << print_at(child_index,false) << "\n";
 					allocator.buffer[pos++] = child_index; // inject the reference in place
 				}
 				else {
 					// it is a rule name, lookup the rule_name_to_index map
 					auto it = rule_name_to_index.find(string_hash);
-					if (it == string_to_index.end()) {
+					if (it == rule_name_to_index.end()) {
+						cout << " at pos " << pos << " : rule " << rule_line_entry.val << "(" << string_hash  << ") not found\n";
+						allocator.buffer[pos++] = 0; // inject the unknown reference
 						return 0; // failure - child rule name not found
 					}
 					uint32_t child_index = it->second;
-					cout << " at pos " << pos << " : target rule " << rule_line_entry.val << " = " << child_index << "\n";
+					cout << " at pos " << pos << " : setting target rule " << rule_line_entry.val << " = " << child_index << " " << print_at(child_index, false) << "\n";
 
 					allocator.buffer[pos++] = child_index; // inject the reference in place
 				}

@@ -10,10 +10,10 @@ using std::string;
 using std::getline;
 using std::istringstream;
 
-namespace llutils {
+using llutils::Rule;
+using llutils::ArenaPool;
 
-	vector<Rule> rules;
-	ArenaPool rule_pool;
+namespace llutils {
 
 	Rule * make_rule(vector<string> rule_lines)
 	{
@@ -72,10 +72,103 @@ namespace llutils {
 
 int main(void)
 {
-	vector<string> test =     { "rule1",
-								"rule2",
-								"rule3 rule4",
-								"\"abc\" \"def\" \"ghi\" rule5" };
-	llutils::Rule * rule = llutils::make_rule(test);
-	//cout << "hello world\n";
+	vector<Rule> rules;
+	ArenaPool rule_pool;
+	vector<vector<string>> tests = { 
+	{ "rule1",
+		"rule2",
+		"rule3 rule4",
+		"\"abc\" \"def\" \"ghi\" rule5" },
+	{ "rule2",
+		"\"abc\" \"def\" \"ghi\" rule5",
+		"\"abc\" \"def\" \"ghi\" rule5"
+		},
+	{ "observe//",
+		"\"observe\"",
+		"\"observes\"",
+		"\"observing\"",
+		"\"observed\""	},
+	{ "detect//",
+		"\"detect\"",
+		"\"detects\"",
+		"\"detecting\"",
+		"\"detected\""	}};
+
+	vector<vector<string>> grammar_tests = {
+	{ "S",
+		"sub vb obj",
+		"sub va vb obj",
+		"sub vb oc obj" },
+
+	{ "sub",
+		"\"dad\"",
+		"\"mum\"",
+		"\"town\"",
+		"\"downstairs\"",
+		"\"the\" \"key\"",
+	},
+
+	{ "va",
+		"va-do",
+		"va-have" },
+	{ "va-do",
+		"\"do\"",
+		"\"does\"",
+		"\"did\"",	},
+	{ "va-have",
+		"\"have\"",
+		"\"has\"",
+		"\"had\"" },
+
+	{ "vb",
+		"vb-give",
+		"vb-take",
+		"vb-go" },
+
+	{ "vb-go",
+		"\"go\"",
+		"\"goes\"",
+		"\"going\"",
+		"\"went\""	},
+
+	{ "vb-give",
+		"\"give\"",
+		"\"gives\"",
+		"\"giving\"",
+		"\"given\"",
+		"\"gave\""	},
+
+	{ "vb-take",
+		"\"take\"",
+		"\"takes\"",
+		"\"taking\"",
+		"\"took\"",
+		"\"taken\""	},
+
+	  { "vc",
+		"\"to\"",
+		"\"from\"", },
+
+	};
+	for (auto test : grammar_tests) {
+		Rule* rule = llutils::make_rule(test);
+		rules.push_back(*rule);
+	}
+	cout << "pass 1 : create the raw strings\n";
+	for (Rule rule : rules) {
+		uint32_t index = rule_pool.create_rule_index_pass1(rule);
+		//cout << "got rule index " << index << "\n";
+	}
+	cout << "pass 2 : create the rules (with placeholders for references)\n";
+	for (Rule rule : rules) {
+		uint32_t index = rule_pool.create_rule_index_pass2(rule);
+		//cout << "got rule index " << index << "\n";
+	}
+	cout << "pass 3 : replace the placeholders in the rules)\n";
+	for (Rule rule : rules) {
+		uint32_t index = rule_pool.create_rule_index_pass3(rule);
+		//cout << "got rule index " << index << "\n";
+	}
+	//rule_pool.print();
+	cout << "done\n";
 }

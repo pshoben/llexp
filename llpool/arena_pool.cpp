@@ -63,11 +63,13 @@ namespace llutils {
 			return it->second;
 		}
 		else {
+			string_to_hash[str] = string_hash; // for debug
 			// not found, add to top of pool
 			uint32_t new_cstring_index = dup_cstring_index(cstr, len);
-string_to_index[string_hash] = new_cstring_index;
-cout << "not found \"" << cstr << "\" adding at index : " << new_cstring_index << "\n";
-return new_cstring_index;
+			if (!new_cstring_index) { return 0; /* failure */ }
+			string_to_index[string_hash] = new_cstring_index;
+			cout << "string not found \"" << cstr << "\" (" << string_hash << ") adding at index : " << new_cstring_index << "\n";
+			return new_cstring_index;
 		}
 	}
 	// len must include null terminator (therefore min is 1)
@@ -84,11 +86,13 @@ return new_cstring_index;
 			return 0; // failure
 		}
 		else {
+			string_to_hash[str] = string_hash; // for debug
 			// not found, add to map and create the begin rule marker
+
 			uint32_t new_rule_index = dup_word_index(0x1); // begin rule marker : magic string : 0x1
-			if (!new_rule_index) {
-				return 0; // failure
-			}
+			if (!new_rule_index) { return 0; /* failure */}
+			rule_name_to_index[string_hash] = new_rule_index;
+			cout << "rule not found \"" << cstr << "\" (" << string_hash << ") adding at index : " << new_rule_index << "\n";
 			return new_rule_index;
 		}
 	}
@@ -161,6 +165,7 @@ return new_cstring_index;
 			return 0; // failure
 		}
 		uint32_t pos = it->second + 1; // skip the start rule marker
+		cout << " rule \"" << rule.name << "\" found at pos " << pos << "\n";
 		// third pass: populate the child references in place with the found index
 		for (auto rule_line : rule.rule_lines) {
 			for (auto rule_line_entry : rule_line) {
@@ -172,6 +177,7 @@ return new_cstring_index;
 						return 0; // failure - child string not found
 					}
 					uint32_t child_index = it->second;
+					cout << " at pos " << pos << " : target string " << rule_line_entry.val << " = " << child_index << "\n";
 					allocator.buffer[pos++] = child_index; // inject the reference in place
 				}
 				else {
@@ -181,6 +187,8 @@ return new_cstring_index;
 						return 0; // failure - child rule name not found
 					}
 					uint32_t child_index = it->second;
+					cout << " at pos " << pos << " : target rule " << rule_line_entry.val << " = " << child_index << "\n";
+
 					allocator.buffer[pos++] = child_index; // inject the reference in place
 				}
 			}

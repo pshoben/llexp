@@ -43,7 +43,7 @@ void fill_pool2() {
 	while (count2 < 10) {
 		int count = 0;
 		for (auto pc : my_strings) {
-			char* result_address = (char*)pool.get_or_create_string_index(pc, my_stringlens[count++] + 1);
+			char* result_address = (char*)(uint64_t)pool.get_or_create_string_index(pc, my_stringlens[count++] + 1);
 			if (result_address) {
 				myresults.push_back(result_address);
 			}

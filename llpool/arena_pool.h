@@ -49,6 +49,11 @@ namespace llutils {
 		std::unordered_map<size_t, uint32_t> string_to_index; // map listing index of a string, used during population/conversion phases
 		std::unordered_map<size_t, uint32_t> rule_name_to_index; // map listing index of a rule, used during population/conversion phases
 
+		// for debug only:
+		std::unordered_map<string, size_t> string_to_hash;
+
+		void print(void);
+
 		uint32_t* dup_word(uint32_t val);
 		uint32_t dup_word_index(uint32_t val);
 

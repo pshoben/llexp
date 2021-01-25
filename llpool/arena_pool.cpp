@@ -13,6 +13,49 @@ using std::cout;
 
 namespace llutils {
 
+	void ArenaPool::print_node(uint32_t index, string indent)
+	{
+		if (index >= allocator.next_free_index) {
+			cout << indent << "out of bounds";
+		}
+		if (index < 4) {
+			cout << indent << "too low - may not be magic number";
+		}
+		char* p = (char*)&(allocator.buffer[index++]);
+		if (*p == 0x1) {
+			// start of rule marker
+			uint32_t rule_name_index = allocator.buffer[index++];
+			char* p2 = (char*)&(allocator.buffer[rule_name_index]);
+			cout << indent << "rule : " << p2 << "\n";
+			p = (char*)&(allocator.buffer[index]);
+			while (*p != 0x03) {
+				// still inside outer loop (list of rule lines)
+				cout << indent << "\n";
+				while (*p != 0x02) {
+					// still inside inner loop (list of rule line entries)
+					uint32_t target_index = allocator.buffer[index];
+					char* p2 = (char*)&(allocator.buffer[target_index]);
+					if (*p2 == 0x1) {
+						// this rule line entry is a rule name
+						print_node(target_index, indent + "  ");
+					}
+					else {
+						// this rule line entry is a string name
+						cout << "\"" << p2 << "\" ";
+					}
+					p = (char*)&(allocator.buffer[++index]);
+				}
+				cout << "\n";
+				p = (char*)&(allocator.buffer[++index]);
+			}
+			cout << "\n";
+		
+		} else {
+			// this is a string, print it
+			cout << indent << "\"" << string(p) << "\"\n";
+		}
+	}
+
 	string ArenaPool::print_at(uint32_t index, bool full)
 	{
 		string ret;
@@ -183,7 +226,7 @@ namespace llutils {
 				return 0; // failure
 		}
 		// end of list marker is 32-bit null terminator word - TODO fix this
-		if (!dup_word_index(0x2)) // end list rule marker : magic string : 0x2
+		if (!dup_word_index(0x3)) // end outer list rule marker : magic string : 0x3
 			return 0; // failure
 		return new_rule_index;
 	}
@@ -236,4 +279,18 @@ namespace llutils {
 		}
 		return 1; // success
 	}
+
+	uint32_t ArenaPool::find_rule_index(const string rule_name)
+	{
+		size_t string_hash = std::hash<string>{}(rule_name);
+		auto it = rule_name_to_index.find(string_hash);
+		if (it == rule_name_to_index.end()) {
+			// not found - should already exist
+			cout << " rule name not found \"" << rule_name << "\"\n";
+			return 0; // failure
+		}
+		return it->second;
+	}
+
+
 };

@@ -2,9 +2,11 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <unordered_map>
 #include "arena_pool.h"
 
 using std::vector;
+using std::unordered_map;
 using std::cout;
 using std::string;
 using std::getline;
@@ -72,6 +74,7 @@ namespace llutils {
 
 int main(void)
 {
+	unordered_map<string,Rule*> rule_map;
 	vector<Rule> rules;
 	ArenaPool rule_pool;
 	vector<vector<string>> tests = { 
@@ -153,6 +156,7 @@ int main(void)
 	for (auto test : grammar_tests) {
 		Rule* rule = llutils::make_rule(test);
 		rules.push_back(*rule);
+		rule_map[rule->name] = rule;
 	}
 	cout << "pass 1 : create the raw strings\n";
 	for (Rule rule : rules) {
@@ -169,6 +173,8 @@ int main(void)
 		uint32_t index = rule_pool.create_rule_index_pass3(rule);
 		//cout << "got rule index " << index << "\n";
 	}
-	//rule_pool.print();
+	uint32_t start_index = rule_pool.find_rule_index("S");
+	cout << "got rule index for S : " << start_index << "\n";
+	rule_pool.print_node(start_index, "");
 	cout << "done\n";
 }

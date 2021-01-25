@@ -54,7 +54,9 @@ namespace llutils {
 
 		// display the value at the index - if full is true print full rule otherwise print name only
 		string print_at(uint32_t index, bool full);
-		
+
+		void print_node(uint32_t index, string indent);
+
 		uint32_t* dup_word(uint32_t val);
 		uint32_t dup_word_index(uint32_t val);
 
@@ -81,6 +83,11 @@ namespace llutils {
 		uint32_t create_rule_index_pass1(Rule & rule);
 		uint32_t create_rule_index_pass2(Rule & rule);
 		uint32_t create_rule_index_pass3(Rule & rule);
+
+		uint32_t find_rule_index(const string rule_name);
+
+		void traverse(uint32_t start_rule_index);
+
 	};
 };
 #endif

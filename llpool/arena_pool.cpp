@@ -34,14 +34,14 @@ namespace llutils {
 				while (*p != 0x02) {
 					// still inside inner loop (list of rule line entries)
 					uint32_t target_index = allocator.buffer[index];
-					char* p2 = (char*)&(allocator.buffer[target_index]);
-					if (*p2 == 0x1) {
+					char* p3 = (char*)&(allocator.buffer[target_index]);
+					if (*p3 == 0x1) {
 						// this rule line entry is a rule name
 						print_node(target_index, indent + "  ");
 					}
 					else {
 						// this rule line entry is a string name
-						cout << "\"" << p2 << "\" ";
+						cout << "\"" << p3 << "\" ";
 					}
 					p = (char*)&(allocator.buffer[++index]);
 				}
@@ -84,7 +84,7 @@ namespace llutils {
 	uint32_t* ArenaPool::dup_word(uint32_t val)
 	{
 		uint32_t* new_word = allocator.allocate(1);
-		if (new_word) [[likely]] {
+		if (new_word) { // [[likely]] {
 			*new_word = val;
 		}
 		return new_word;
@@ -92,7 +92,7 @@ namespace llutils {
 	uint32_t ArenaPool::dup_word_index(uint32_t val)
 	{
 		uint32_t* new_word = dup_word(val);
-		if (new_word) [[likely]] {
+		if (new_word) { // [[likely]] {
 			// convert address back to index
 			return (uint32_t)((uint32_t*)new_word - (uint32_t*)&(allocator.buffer));
 		} else {
@@ -104,7 +104,7 @@ namespace llutils {
 	{
 		uint32_t padded_size_words = ((--len) >> 2) + 1; // size in words 
 		uint32_t* new_cstring_addr = allocator.allocate(padded_size_words);
-		if (new_cstring_addr) [[likely]] {
+		if (new_cstring_addr) { // [[likely]] {
 			memcpy(new_cstring_addr, str, len);
 		}
 		return new_cstring_addr;
@@ -250,29 +250,29 @@ namespace llutils {
 		// third pass: populate the child references in place with the found index
 		for (auto rule_line : rule.rule_lines) {
 			for (auto rule_line_entry : rule_line) {
-				size_t string_hash = std::hash<string>{}(rule_line_entry.val);
+				size_t string_hash2 = std::hash<string>{}(rule_line_entry.val);
 				if (rule_line_entry.is_string) {
-					// it is a rule name, lookup the string_to_index map
-					auto it = string_to_index.find(string_hash);
-					if (it == string_to_index.end()) {
+					// it2 is a rule name, lookup the string_to_index map
+					auto it2 = string_to_index.find(string_hash2);
+					if (it2 == string_to_index.end()) {
 						return 0; // failure - child string not found
 					}
-					uint32_t child_index = it->second;
-					cout << " at pos " << pos << " : setting target string " << rule_line_entry.val << " = " << child_index << " " << print_at(child_index,false) << "\n";
-					allocator.buffer[pos++] = child_index; // inject the reference in place
+					uint32_t child_index2 = it2->second;
+					cout << " at pos " << pos << " : setting target string " << rule_line_entry.val << " = " << child_index2 << " " << print_at(child_index2,false) << "\n";
+					allocator.buffer[pos++] = child_index2; // inject the reference in place
 				}
 				else {
-					// it is a rule name, lookup the rule_name_to_index map
-					auto it = rule_name_to_index.find(string_hash);
-					if (it == rule_name_to_index.end()) {
-						cout << " at pos " << pos << " : rule " << rule_line_entry.val << "(" << string_hash  << ") not found\n";
+					// it2 is a rule name, lookup the rule_name_to_index map
+					auto it2 = rule_name_to_index.find(string_hash2);
+					if (it2 == rule_name_to_index.end()) {
+						cout << " at pos " << pos << " : rule " << rule_line_entry.val << "(" << string_hash2  << ") not found\n";
 						allocator.buffer[pos++] = 0; // inject the unknown reference
 						return 0; // failure - child rule name not found
 					}
-					uint32_t child_index = it->second;
-					cout << " at pos " << pos << " : setting target rule " << rule_line_entry.val << " = " << child_index << " " << print_at(child_index, false) << "\n";
+					uint32_t child_index2 = it2->second;
+					cout << " at pos " << pos << " : setting target rule " << rule_line_entry.val << " = " << child_index2 << " " << print_at(child_index2, false) << "\n";
 
-					allocator.buffer[pos++] = child_index; // inject the reference in place
+					allocator.buffer[pos++] = child_index2; // inject the reference in place
 				}
 			}
 			pos++; // skip the end of list marker
@@ -293,4 +293,4 @@ namespace llutils {
 	}
 
 
-};
+}

@@ -89,5 +89,5 @@ namespace llutils {
 		void traverse(uint32_t start_rule_index);
 
 	};
-};
+}
 #endif

@@ -17,7 +17,7 @@ using namespace std;
 using namespace llutils;
 
 ArenaPool pool;
-char* my_strings[] = { "abc", "defg", "", "supercalifragilisticexpialodocious" };
+const char* my_strings[] = { "abc", "defg", "", "supercalifragilisticexpialodocious" };
 size_t my_stringlens[] = { sizeof("abc"), sizeof("def"),sizeof(""),sizeof("supercalifragilisticexpialodocious" )};
 vector<char*> myresults;
 

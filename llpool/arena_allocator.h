@@ -42,7 +42,7 @@ public:
 	{
 		uint32_t prev_free_index = next_free_index;
 		next_free_index += num_words_to_allocate;
-		if (next_free_index >= SIZE) [[unlikely]]
+		if (next_free_index >= SIZE) // [[unlikely]]
 			return 0; // out of space
 		return prev_free_index;
 	}
@@ -50,7 +50,7 @@ public:
 	*   @return nullptr on out of space */
 	uint32_t * allocate(unsigned int num_words_to_allocate) {
 		uint32_t index = allocate_index(num_words_to_allocate);
-		if (index == 0) [[unlikely]]
+		if (index == 0) // [[unlikely]]
 			return nullptr; // out of space
 		return &(buffer[index]);
 	}

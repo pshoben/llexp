@@ -28,7 +28,7 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
   mutex iomutex;
   unsigned int max_writes = g_max_samples / g_num_thread_pairs; 
   bool verbose = g_verbose;
-  MessageStats stats{ g_num_thread_pairs, max_writes, (unsigned int) g_msg_per_sec };
+  MessageStats stats{ g_num_thread_pairs, max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
   for (unsigned i = 0; i < num_threads; ++i) {
 
@@ -41,6 +41,7 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
        std::memset( samples, 0, sizeof( TimespecPair ) * max_writes ) ;
 
        TimespecPair * next_sample = samples;
+       if( verbose )
        {
           std::lock_guard<mutex> iolock(iomutex);
           std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << " - " << msg << " waiting for " << max_writes << " msgs\n";
@@ -78,7 +79,9 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
         }
         {
             std::lock_guard<mutex> iolock(iomutex);
-            std::cout << "Read Thread #" << i << ": on CPU " << sched_getcpu() << " - read " << num_reads << " msgs \n";
+            if( verbose ) {
+              std::cout << "Read Thread #" << i << ": on CPU " << sched_getcpu() << " - read " << num_reads << " msgs \n";
+            }
             // end reader : submit results to stats engine
             stats.add_batch( samples ) ;
         }
@@ -89,6 +92,8 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
       long target_delay = ((long)(double)(1000000000.0 / msg_per_sec)) ;
       // writer thread lambda
       threads[i] = std::thread([ verbose, &iomutex, i, msg, &queue, max_writes, msg_per_sec, target_delay ] {
+
+          if( verbose )
           {
               std::lock_guard<mutex> iolock(iomutex);
               std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << " - " << msg << " writing " << max_writes << " msgs at rate " << msg_per_sec << " msg/sec with target delay " << target_delay << " ns per msg\n";
@@ -118,6 +123,7 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
 
              prev_write_time = write_time;
           }
+          if( verbose )
           {
              std::lock_guard<mutex> iolock(iomutex);
              std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << " finished after " << count << " write ops " << "\n";
@@ -147,12 +153,12 @@ int main(int argc, char * const * argv)
     {
       case 'v':
         g_verbose = true;
-        printf("got -v verbose mode \n"); 
+//        printf("got -v verbose mode \n"); 
         break;
       case 'n':
       {
         g_num_thread_pairs = std::max(1,atoi(optarg)/2);
-        printf("got -n num threads = %d thread pairs\n", g_num_thread_pairs); 
+//        printf("got -n num threads = %d thread pairs\n", g_num_thread_pairs); 
         break;
       }
       case 'm':
@@ -161,21 +167,21 @@ int main(int argc, char * const * argv)
         if ( max_samples < g_max_samples )  {
            g_max_samples = max_samples;
         }
-        printf("got -m num messages = %u , using value %u (max %u)\n", max_samples,  g_max_samples, 1000000); 
+//        printf("got -m num messages = %u , using value %u (max %u)\n", max_samples,  g_max_samples, 1000000); 
         break;
       }
       case 'r':
       {
         g_msg_per_sec = (unsigned int) atoi(optarg);
         g_mb_per_sec = calculate_throughput_mb( g_msg_per_sec, g_msg_size );
-        printf("got -r rate = %u messages per sec ( = %0.3f MBytes/sec using msg size = %lu bytes)\n", g_msg_per_sec, g_mb_per_sec, g_msg_size ); 
+//        printf("got -r rate = %u messages per sec ( = %0.3f MBytes/sec using msg size = %lu bytes)\n", g_msg_per_sec, g_mb_per_sec, g_msg_size ); 
         break;
       }
       case 't':
       {
         g_mb_per_sec = atof(optarg);
         g_msg_per_sec = calculate_throughput_msgs( g_mb_per_sec, g_msg_size );
-        printf("got -t throughput = %u messages per sec ( = %0.3f MBytes/sec using msg size = %lu bytes)\n", g_msg_per_sec, g_mb_per_sec, g_msg_size ); 
+//        printf("got -t throughput = %u messages per sec ( = %0.3f MBytes/sec using msg size = %lu bytes)\n", g_msg_per_sec, g_mb_per_sec, g_msg_size ); 
         break;
       }
  
@@ -185,8 +191,8 @@ int main(int argc, char * const * argv)
         exit(0);
      }
   }
-  printf("usage: (-v (=verbose)) (-m num-messages) (-r rate-msg-per-sec) (-t throughput-MB-per-sec)  -n num-threads\n");
-  printf("running with %d thread pairs (%d threads)\n", g_num_thread_pairs, g_num_thread_pairs * 2); 
+//  printf("usage: (-v (=verbose)) (-m num-messages) (-r rate-msg-per-sec) (-t throughput-MB-per-sec)  -n num-threads\n");
+//  printf("running with %d thread pairs (%d threads)\n", g_num_thread_pairs, g_num_thread_pairs * 2); 
 
   vector<std::thread> reader_threads( g_num_thread_pairs );
   vector<std::thread> writer_threads( g_num_thread_pairs );

@@ -6,6 +6,7 @@
 #include <mutex>
 #include <cmath>
 #include <string>
+#include <iomanip>
 
 using std::string;
 
@@ -130,7 +131,7 @@ public:
     unsigned int width = BIT_WIDTH(val);
     counts[width]++;
     row_count++;
-    std::cout << " adding " << val << " to bucket " << width << "\n";
+    //std::cout << " adding " << val << " to bucket " << width << "\n";
   }
 
   void scale_row() {
@@ -207,7 +208,7 @@ public:
      std::string ret{""};
      if(max_column >= 0) {
        for( auto i = 0 ; i <= max_column ; i++ ) {
-         std::cout << "..." << scaled[i] << " " << counts[i] << "\n"; 
+         //std::cout << "..." << scaled[i] << " " << counts[i] << "\n"; 
          char * base62digit = to_string( tmp, scaled[i], 36 );
          ret.push_back(*base62digit); 
        }
@@ -221,25 +222,32 @@ class MessageStats {
 public:
    unsigned int num_batches;
    unsigned int max_writes;
+   unsigned int num_samples_per_sec;
+   unsigned int num_thread_pairs;
    std::vector< TimespecPair *> batches;
    std::mutex mutex;
 
-   ScaleRow * histogram_all;
+   //ScaleRow * histogram_all;
 
-   MessageStats( unsigned int pnum_batches, unsigned int pmax_writes, unsigned int num_samples_per_sec ) 
-               : num_batches( pnum_batches ), max_writes( pmax_writes ), histogram_all( new ScaleRow( num_samples_per_sec)) {}
+   MessageStats( unsigned int pnum_batches, unsigned int pmax_writes, unsigned int pnum_samples_per_sec, unsigned int pnum_thread_pairs ) 
+               : num_batches( pnum_batches ), 
+                 max_writes( pmax_writes ), 
+                 num_samples_per_sec( pnum_samples_per_sec ),
+                 num_thread_pairs( pnum_thread_pairs )
+                 //histogram_all( new ScaleRow( num_samples_per_sec )) 
+   { }
    ~MessageStats()
    {
       for( auto owned : batches ) {
           delete[] (owned);
       }
-      delete histogram_all;
+      //delete histogram_all;
    }
 
    void process_batch( TimespecPair * batch, __attribute__((unused))bool first_batch ) 
    {
       //unsigned int ignore_first_n_entries = 1000 ;
-      std::cout << "processing a batch\n";
+      //std::cout << "processing a batch\n";
       unsigned int count=0;
       TimespecPair * p_batch_entry = batch;
       while( count < max_writes ) {
@@ -251,16 +259,16 @@ public:
          if( latency < latency_min) latency_min = latency;
          if( latency > latency_max) latency_max = latency;
 
-         if( p_batch_entry->write_time.tv_sec < histogram_all->min_second) { 
-            histogram_all->min_second = p_batch_entry->write_time.tv_sec;
-         } 
+//         if( p_batch_entry->write_time.tv_sec < histogram_all->min_second) { 
+//            histogram_all->min_second = p_batch_entry->write_time.tv_sec;
+//         } 
 //         histogram_all->add_to_bucket((unsigned int)latency);
 
          p_batch_entry++;
          count++;
       }
       total_count += count;
-     std::cout << " count " << total_count << " sum latency at batch : " << latency_sum << "\n"; 
+     //std::cout << " count " << total_count << " sum latency at batch : " << latency_sum << "\n"; 
    }
 
    void std_dev_batch( TimespecPair * batch ) 
@@ -283,9 +291,9 @@ public:
       unsigned int count=0;
       while( count < max_writes ) {
          long latency = timespec_diff_ns( p_batch_entry->write_time, p_batch_entry->read_time ); 
-         if( p_batch_entry->write_time.tv_sec - histogram_all->min_second < 30 ) {
+//         if( p_batch_entry->write_time.tv_sec - histogram_all->min_second < 30 ) {
 //             histogram_all->add_to_bucket_per_sec((unsigned int)latency, (unsigned int) p_batch_entry->write_time.tv_sec - histogram_all->min_second );
-         }
+//         }
          p_batch_entry++;
          count++;
       }
@@ -294,18 +302,23 @@ public:
 
    void print_stats() 
    {
-       std::cout << " got all " << batches.size() << " batches\n";
+       //std::cout << " got all " << batches.size() << " batches\n";
        bool first_batch = true;
        for( auto batch : batches ) {
            process_batch( batch, first_batch );
            first_batch = false;
        }
-       std::cout << " count " << total_count << " sum latency  : " << latency_sum << "\n"; 
-       std::cout << " min " << latency_min << " (ns) ;   max  : " << latency_max << " (ns)\n"; 
+ 
+       std::cout << " threads " << std::setw(2) << std::setfill(' ') << num_thread_pairs*2 ; 
+  
+       std::cout << " rate " << std::setw(9) << std::setfill(' ') << num_samples_per_sec ;
+       std::cout << " count " << std::setw(9) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
+       //std::cout << " min " << std::setw(12) << std::setfill(' ') << latency_min;
+       //std::cout << " max " << std::setw(12) << std::setfill(' ') << latency_max; 
 
        latency_avg = double(latency_sum) / double(total_count) ;
 
-       std::cout << " avg " << latency_avg << " (ns) \n"; 
+       std::cout << " avg " << std::setw(12) << std::setfill(' ') << latency_avg; 
 
        for( auto batch : batches ) {
            std_dev_batch( batch );
@@ -314,10 +327,10 @@ public:
        double latency_2dev =  latency_std_dev * 2;
        double latency_3dev =  latency_std_dev * 3;
 
-       std::cout << "std dev: " << latency_std_dev << "(ns) " << "\n";
-       std::cout << "68% of samples below : " << double(latency_avg + latency_std_dev) << "\n";
-       std::cout << "95% of samples below : " << double(latency_avg + latency_2dev) << "\n";
-       std::cout << "99% of samples below : " << double(latency_avg + latency_3dev) << "\n";
+       std::cout << " dev " << std::setw(12) << std::setfill(' ') << latency_std_dev;
+       std::cout << " sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_std_dev);
+       std::cout << " 2sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_2dev);
+       std::cout << " 3sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_3dev) << "\n";
 
 
 //       std::cout << "\nHistogram column = latency (log2) ;  cell value  = Log2 count\n\n";
@@ -340,7 +353,7 @@ public:
        batches.push_back(batch);
        if( batches.size() == num_batches ) {
           // got them all
-          std::cout << "got them all\n";
+          //std::cout << "got them all\n";
           print_stats();
        }
    }

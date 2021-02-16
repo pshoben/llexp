@@ -322,7 +322,7 @@ public:
        //std::cout.precision(0);
        //std::cout << std::noshowpoint ;
  
-       std::cout << "| threads " << std::setw(2) << std::setfill(' ') << num_thread_pairs*2 ; 
+       std::cout << "|threads " << std::setw(2) << std::setfill(' ') << num_thread_pairs*2 ; 
   
        std::cout << " | rate " << std::setw(9) << std::setfill(' ') << num_samples_per_sec ;
        std::cout << " | count " << std::setw(9) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 

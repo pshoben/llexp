@@ -16,8 +16,7 @@ public:
   static const size_t MAX_SAMPLES = 1000000U;
   //std::vector<TimespecPair> samples{ MAX_SAMPLES };
 
- 
- struct timespec write() {
+ struct timespec write_v1() {
     std::unique_lock<std::mutex> guard( queue_mutex );
     struct timespec write_time;
     clock_gettime( CLOCK_MONOTONIC, &write_time );
@@ -27,7 +26,7 @@ public:
     return write_time;
  }
 
- TimespecPair * read(TimespecPair * next_sample) {
+ TimespecPair * read_v1( TimespecPair * next_sample ) {
    std::unique_lock<std::mutex> guard( queue_mutex );
    if( !queue.empty()) {
      struct timespec write_time = queue.front();
@@ -51,5 +50,15 @@ public:
    }
    return next_sample;
  } 
+
+ struct timespec write() 
+ {
+     return write_v1();
+ } 
+
+ TimespecPair * read( TimespecPair * next_sample ) 
+ {
+     return read_v1( next_sample );
+ }
 };
 

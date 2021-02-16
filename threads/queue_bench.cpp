@@ -78,15 +78,15 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
          {
             num_reads ++;
 
-            if( verbose ) 
-            {
-              std::lock_guard<mutex> iolock(iomutex);
-              std::cout << "Reader Thread #" << i << ": on CPU " << sched_getcpu()
-              << " num reads = " << num_reads  
-              << " write time = " << current_sample->write_time.tv_sec << "." << current_sample->write_time.tv_nsec
-              << " read time = " << current_sample->read_time.tv_sec << "." << current_sample->read_time.tv_nsec
-              << " latency = " << timespec_diff_ns( current_sample->write_time, current_sample->read_time )  << "\n";
-            }
+//            if( verbose ) 
+//            {
+//              std::lock_guard<mutex> iolock(iomutex);
+//              std::cout << "Reader Thread #" << i << ": on CPU " << sched_getcpu()
+//              << " num reads = " << num_reads  
+//              << " write time = " << current_sample->write_time.tv_sec << "." << current_sample->write_time.tv_nsec
+//              << " read time = " << current_sample->read_time.tv_sec << "." << current_sample->read_time.tv_nsec
+//              << " latency = " << timespec_diff_ns( current_sample->write_time, current_sample->read_time )  << "\n";
+//            }
          }
          // check if all msgs received so exit thread:
          if( num_reads >= max_writes ) {
@@ -157,7 +157,7 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
 
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    CPU_SET(i*2+is_reader, &cpuset);
+    CPU_SET(i*2+is_reader+1, &cpuset);
     int rc = pthread_setaffinity_np(threads[i].native_handle(),
                                     sizeof(cpu_set_t), &cpuset);
 //    if (rc != 0) 

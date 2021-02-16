@@ -12,7 +12,7 @@ using std::string;
 
 //#include <bit> c++20 / GCC9
 // define BIT_WIDTH(x) std::bit_width(x)
-#define BIT_WIDTH(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1)+1)
+#define BIT_WIDTH(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
 
 class ScaleRow 
 {
@@ -32,20 +32,20 @@ public:
   // represents a log2 scale histogram rendering of these raw values : 0 1 100 312 500 510 520 800 830 1000 
 
   int samples_per_sec;
-
-  unsigned int counts_per_sec[30][64];
-  int scaled_per_sec[30][64];
-  int row_count_per_sec[30];
+//
+//  unsigned int counts_per_sec[30][64];
+//  int scaled_per_sec[30][64];
+//  int row_count_per_sec[30];
 
   unsigned int counts[64];
   int scaled[64];
   int row_count=0;
   int max_column=-1;
-  int max_column_per_sec=-1;
+//  int max_column_per_sec=-1;
 
   time_t min_second=LONG_MAX;
  
-  const char digits[63] = " 123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const char digits[63] = ".123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
   ScaleRow(int psamples_per_sec) : samples_per_sec( psamples_per_sec ) 
   {
@@ -54,89 +54,94 @@ public:
     for( auto i = 0 ; i < 64 ; i++ ) 
       scaled[i]=-1;
 
-    for( auto j = 0 ; j < 30 ; j++ ) 
-      for( auto i = 0 ; i < 64 ; i++ ) 
-        counts_per_sec[j][i]=0;
-
-    for( auto j = 0 ; j < 30 ; j++ ) 
-      for( auto i = 0 ; i < 64 ; i++ ) 
-        scaled_per_sec[j][i]=-1;
-
-    for( auto j = 0 ; j < 30 ; j++ ) 
-      row_count_per_sec[j]=0;
+//    for( auto j = 0 ; j < 30 ; j++ ) 
+//      for( auto i = 0 ; i < 64 ; i++ ) 
+//        counts_per_sec[j][i]=0;
+//
+//    for( auto j = 0 ; j < 30 ; j++ ) 
+//      for( auto i = 0 ; i < 64 ; i++ ) 
+//        scaled_per_sec[j][i]=-1;
+//
+//    for( auto j = 0 ; j < 30 ; j++ ) 
+//      row_count_per_sec[j]=0;
   }
  
-  void add_to_bucket_per_sec( unsigned int val, unsigned int current_sec ) 
-  {
-    unsigned int width = BIT_WIDTH(val);
-    counts_per_sec[current_sec][width]++;
-    row_count_per_sec[current_sec]++;
-  }
+//  void add_to_bucket_per_sec( unsigned int val, unsigned int current_sec ) 
+//  {
+//    unsigned int width = BIT_WIDTH(val);
+//    counts_per_sec[current_sec][width]++;
+//    row_count_per_sec[current_sec]++;
+//  }
 
-  void scale_per_sec() 
-  {
-    for( auto j = 0 ; j < 30 ; j++ ){ 
-      for( auto i = 0 ; i < 64 ; i++ ) {
-        scaled_per_sec[j][i]= BIT_WIDTH( counts_per_sec[j][i] )-1; 
-      }
-    }
-  }
+//  void scale_per_sec() 
+//  {
+//    for( auto j = 0 ; j < 30 ; j++ ){ 
+//      for( auto i = 0 ; i < 64 ; i++ ) {
+//        scaled_per_sec[j][i]= BIT_WIDTH( counts_per_sec[j][i] )-1; 
+//      }
+//    }
+//  }
 
-  void calc_max_column_per_sec() 
-  {
-     for( auto j = 0 ; j < 30 ; j++ )
-     { 
-       // find max populated index for this second
-       int i = 63;
-       while( i>=0 && !counts[i] )
-         i--;
-       max_column_per_sec = std::max( max_column_per_sec, i ); // -1 means no columns populated
-     }
-  }
+//  void calc_max_column_per_sec() 
+//  {
+//     for( auto j = 0 ; j < 30 ; j++ )
+//     { 
+//       // find max populated index for this second
+//       int i = 63;
+//       while( i>=0 && !counts[i] )
+//         i--;
+//       max_column_per_sec = std::max( max_column_per_sec, i ); // -1 means no columns populated
+//     }
+//  }
 
-  std::string print_ruler_per_sec() 
-  {
-     calc_max_column_per_sec();
-     std::string ret{""};
-     if(max_column_per_sec >= 0) {
-       for( auto i = 0 ; i <= max_column_per_sec ; i++ ) {
-         ret.push_back(digits[i]); 
-       }
-    }
-    return ret;
-  }
+//  std::string print_ruler_per_sec() 
+//  {
+//     calc_max_column_per_sec();
+//     std::string ret{""};
+//     if(max_column_per_sec >= 0) {
+//       for( auto i = 0 ; i <= max_column_per_sec ; i++ ) {
+//         ret.push_back(digits[i]); 
+//       }
+//    }
+//    return ret;
+//  }
 
-  std::string print_rows_per_sec() 
-  {
-     std::string ret = print_ruler_per_sec() + "\n";
-     char tmp[32];
-     if( max_column_per_sec >= 0) {
-       for( auto j = 0 ; j < 20 ; j++ )
-       { 
-         for( auto i = 0 ; i <= max_column_per_sec ; i++ ) {
-           char * base62digit = to_string( tmp, scaled_per_sec[j][i], 36 );
-           //std::cout << "..." << "[" << j << "][" << i << "] " <<  scaled_per_sec[j][i] << " " << counts_per_sec[j][i] << " = " << base62digit << "\n"; 
-           ret.push_back(*base62digit); 
-         }
-         ret.push_back('\n');
-       }
-    }
-    return ret;
-  }
-
-
+//  std::string print_rows_per_sec() 
+//  {
+//     std::string ret = print_ruler_per_sec() + "\n";
+//     char tmp[32];
+//     if( max_column_per_sec >= 0) {
+//       for( auto j = 0 ; j < 20 ; j++ )
+//       { 
+//         for( auto i = 0 ; i <= max_column_per_sec ; i++ ) {
+//           char * base62digit = to_string( tmp, scaled_per_sec[j][i], 36 );
+//           //std::cout << "..." << "[" << j << "][" << i << "] " <<  scaled_per_sec[j][i] << " " << counts_per_sec[j][i] << " = " << base62digit << "\n"; 
+//           ret.push_back(*base62digit); 
+//         }
+//         ret.push_back('\n');
+//       }
+//    }
+//    return ret;
+//  }
  
   void add_to_bucket( unsigned int val ) 
   {
     unsigned int width = BIT_WIDTH(val);
     counts[width]++;
     row_count++;
-    //std::cout << " adding " << val << " to bucket " << width << "\n";
+    //std::cout << " adding " << val << " to bucket " << width << " giving count " << counts[width] << " \n";
+    //scale_row(); // TODO REMOVE
   }
 
-  void scale_row() {
-    for( auto i = 0 ; i < 64 ; i++ ) {
-      scaled[i]= BIT_WIDTH( counts[i] )-1; 
+  void scale_row() 
+  {
+    for( auto i = 0 ; i < 64 ; i++ ) { 
+      unsigned int count = counts[i];
+      
+      if( count > 0) {
+        scaled[i]= BIT_WIDTH( count );
+      }
+      //std::cout << " scaled[" << i << "] = " << scaled[i] << " count = " << count << " \n";
     }
   }
 
@@ -188,7 +193,6 @@ public:
       return savedbuff;
   }
 
-
   std::string print_ruler() 
   {
      calc_max_column();
@@ -227,21 +231,25 @@ public:
    std::vector< TimespecPair *> batches;
    std::mutex mutex;
 
-   //ScaleRow * histogram_all;
+   ScaleRow * histogram_all;
 
    MessageStats( unsigned int pnum_batches, unsigned int pmax_writes, unsigned int pnum_samples_per_sec, unsigned int pnum_thread_pairs ) 
                : num_batches( pnum_batches ), 
                  max_writes( pmax_writes ), 
                  num_samples_per_sec( pnum_samples_per_sec ),
-                 num_thread_pairs( pnum_thread_pairs )
-                 //histogram_all( new ScaleRow( num_samples_per_sec )) 
-   { }
+                 num_thread_pairs( pnum_thread_pairs ),
+                 histogram_all( new ScaleRow( num_samples_per_sec )) 
+   {
+//     std::cout << "MessagStats::\n"; // TODO
+//      histogram_all->scale_row();
+
+ }
    ~MessageStats()
    {
       for( auto owned : batches ) {
           delete[] (owned);
       }
-      //delete histogram_all;
+      delete histogram_all;
    }
 
    void process_batch( TimespecPair * batch, __attribute__((unused))bool first_batch ) 
@@ -262,7 +270,7 @@ public:
 //         if( p_batch_entry->write_time.tv_sec < histogram_all->min_second) { 
 //            histogram_all->min_second = p_batch_entry->write_time.tv_sec;
 //         } 
-//         histogram_all->add_to_bucket((unsigned int)latency);
+         histogram_all->add_to_bucket((unsigned int)latency);
 
          p_batch_entry++;
          count++;
@@ -285,23 +293,25 @@ public:
       //total_count += count;
    }
 
-  void process_batch_per_sec( TimespecPair * batch ) 
-   {
-      TimespecPair * p_batch_entry = batch;
-      unsigned int count=0;
-      while( count < max_writes ) {
-         long latency = timespec_diff_ns( p_batch_entry->write_time, p_batch_entry->read_time ); 
-//         if( p_batch_entry->write_time.tv_sec - histogram_all->min_second < 30 ) {
-//             histogram_all->add_to_bucket_per_sec((unsigned int)latency, (unsigned int) p_batch_entry->write_time.tv_sec - histogram_all->min_second );
-//         }
-         p_batch_entry++;
-         count++;
-      }
-   }
+//  void process_batch_per_sec( TimespecPair * batch ) 
+//   {
+//      TimespecPair * p_batch_entry = batch;
+//      unsigned int count=0;
+//      while( count < max_writes ) {
+//         long latency = timespec_diff_ns( p_batch_entry->write_time, p_batch_entry->read_time ); 
+////         if( p_batch_entry->write_time.tv_sec - histogram_all->min_second < 30 ) {
+////             histogram_all->add_to_bucket_per_sec((unsigned int)latency, (unsigned int) p_batch_entry->write_time.tv_sec - histogram_all->min_second );
+////         }
+//         p_batch_entry++;
+//         count++;
+//      }
+//   }
 
 
    void print_stats() 
    {
+       //std::cout << "print_stats\n"; // TODO
+       //histogram_all->scale_row();
        //std::cout << " got all " << batches.size() << " batches\n";
        bool first_batch = true;
        for( auto batch : batches ) {
@@ -311,14 +321,14 @@ public:
  
        std::cout << " threads " << std::setw(2) << std::setfill(' ') << num_thread_pairs*2 ; 
   
-       std::cout << " rate " << std::setw(9) << std::setfill(' ') << num_samples_per_sec ;
-       std::cout << " count " << std::setw(9) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
+       std::cout << " | rate " << std::setw(9) << std::setfill(' ') << num_samples_per_sec ;
+       std::cout << " | count " << std::setw(9) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
        //std::cout << " min " << std::setw(12) << std::setfill(' ') << latency_min;
        //std::cout << " max " << std::setw(12) << std::setfill(' ') << latency_max; 
 
        latency_avg = double(latency_sum) / double(total_count) ;
 
-       std::cout << " avg " << std::setw(12) << std::setfill(' ') << latency_avg; 
+       std::cout << " | avg " << std::setw(12) << std::setfill(' ') << latency_avg; 
 
        for( auto batch : batches ) {
            std_dev_batch( batch );
@@ -327,16 +337,16 @@ public:
        double latency_2dev =  latency_std_dev * 2;
        double latency_3dev =  latency_std_dev * 3;
 
-       std::cout << " dev " << std::setw(12) << std::setfill(' ') << latency_std_dev;
-       std::cout << " sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_std_dev);
-       std::cout << " 2sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_2dev);
-       std::cout << " 3sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_3dev) << "\n";
+       std::cout << " | dev " << std::setw(12) << std::setfill(' ') << latency_std_dev;
+       std::cout << " | sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_std_dev);
+       std::cout << " | 2sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_2dev);
+       std::cout << " | 3sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_3dev);
 
 
-//       std::cout << "\nHistogram column = latency (log2) ;  cell value  = Log2 count\n\n";
-//       histogram_all->scale_row();
-//       std::cout << histogram_all->print_ruler() << "\n";
-//       std::cout << histogram_all->print_row() << "\n"; 
+       //std::cout << "\nHistogram column = latency (log2) ;  cell value  = Log2 count\n\n";
+       histogram_all->scale_row();
+       //std::cout << histogram_all->print_ruler() << "\n";
+       std::cout << " | hist " << histogram_all->print_row() << "\n"; 
 
        // first pass has got min_second
 //       for( auto batch : batches ) {
@@ -344,19 +354,22 @@ public:
 //       }
        //std::cout << "\nHistogram row = per second ; column = latency (log2) ;  cell value  = Log2 count\n\n";
        //std::cout << histogram_all->print_rows_per_sec() << "\n"; 
-
    }
 
    void add_batch( TimespecPair * batch ) 
    {
        std::lock_guard guard(mutex);
        batches.push_back(batch);
+       //std::cout << "add_batch\n"; // TODO
+       //histogram_all->scale_row();
+ 
        if( batches.size() == num_batches ) {
           // got them all
           //std::cout << "got them all\n";
           print_stats();
        }
    }
+
  private:
    long latency_sum=0;
 	 long total_count=0;
@@ -365,7 +378,5 @@ public:
    double latency_avg=0;
    long sum_of_squares=0;
    double latency_std_dev=0;
-   
-  
 };
 

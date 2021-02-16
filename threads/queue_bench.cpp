@@ -22,23 +22,41 @@ double g_mb_per_sec = calculate_throughput_mb( g_msg_per_sec, g_msg_size );
 
 bool g_verbose = false;
 
+MessageStats * g_stats;
+
+
 void start_threads( unsigned int num_threads, vector<std::thread> & threads, const char * msg, int is_reader )
 {
   QueueWrapper queue{};
   mutex iomutex;
   unsigned int max_writes = g_max_samples / g_num_thread_pairs; 
   bool verbose = g_verbose;
-  MessageStats stats{ g_num_thread_pairs, max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
+
+  g_stats = new MessageStats{ g_num_thread_pairs, max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
+  MessageStats * stats = g_stats;
+
 
   for (unsigned i = 0; i < num_threads; ++i) {
 
     if( is_reader ) 
     {
+       
+       //std::cout << "is_reader#0 " << i << "\n"; // TODO
+       //stats->histogram_all->scale_row();
        // reader thread lambda
-       threads[i] = std::thread([ verbose, &iomutex, i, msg, &queue, max_writes, &stats ] {
+       threads[i] = std::thread([ verbose, &iomutex, i, msg, &queue, max_writes, stats ] {
+       TimespecPair * samples ;
+       {
+          std::lock_guard<mutex> iolock(iomutex);
+          //std::cout << "is_reader#1 " << i << "\n"; // TODO
+          //stats.histogram_all->scale_row();
 
-       TimespecPair * samples = new TimespecPair[ max_writes ] ;
-       std::memset( samples, 0, sizeof( TimespecPair ) * max_writes ) ;
+          samples = new TimespecPair[ max_writes ] ;
+          std::memset( samples, 0, sizeof( TimespecPair ) * max_writes ) ;
+
+         // std::cout << "is_reader#2 " << i << "\n"; // TODO
+         // stats->histogram_all->scale_row();
+       }
 
        TimespecPair * next_sample = samples;
        if( verbose )
@@ -48,6 +66,10 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
        }
 
        unsigned int num_reads = 0;
+
+       //std::cout << "is_reader#3 " << i << "\n"; // TODO
+       //stats->histogram_all->scale_row();
+
        while( true ) {
 
          TimespecPair * current_sample = next_sample;
@@ -83,7 +105,7 @@ void start_threads( unsigned int num_threads, vector<std::thread> & threads, con
               std::cout << "Read Thread #" << i << ": on CPU " << sched_getcpu() << " - read " << num_reads << " msgs \n";
             }
             // end reader : submit results to stats engine
-            stats.add_batch( samples ) ;
+            stats->add_batch( samples ) ;
         }
       });
     } else {

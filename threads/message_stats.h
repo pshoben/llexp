@@ -318,17 +318,24 @@ public:
            process_batch( batch, first_batch );
            first_batch = false;
        }
+
+       //std::cout.precision(0);
+       //std::cout << std::noshowpoint ;
  
-       std::cout << " threads " << std::setw(2) << std::setfill(' ') << num_thread_pairs*2 ; 
+       std::cout << "| threads " << std::setw(2) << std::setfill(' ') << num_thread_pairs*2 ; 
   
        std::cout << " | rate " << std::setw(9) << std::setfill(' ') << num_samples_per_sec ;
        std::cout << " | count " << std::setw(9) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
+
        //std::cout << " min " << std::setw(12) << std::setfill(' ') << latency_min;
        //std::cout << " max " << std::setw(12) << std::setfill(' ') << latency_max; 
 
        latency_avg = double(latency_sum) / double(total_count) ;
+       if( std::isnan(latency_avg))
+         std::cout << " | avg " << std::setw(12) << std::setfill(' ') << latency_avg;
+       else 
+         std::cout << " | avg " << std::setw(12) << std::setfill(' ') << long(latency_avg);
 
-       std::cout << " | avg " << std::setw(12) << std::setfill(' ') << latency_avg; 
 
        for( auto batch : batches ) {
            std_dev_batch( batch );
@@ -337,10 +344,29 @@ public:
        double latency_2dev =  latency_std_dev * 2;
        double latency_3dev =  latency_std_dev * 3;
 
-       std::cout << " | dev " << std::setw(12) << std::setfill(' ') << latency_std_dev;
-       std::cout << " | sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_std_dev);
-       std::cout << " | 2sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_2dev);
-       std::cout << " | 3sig " << std::setw(12) << std::setfill(' ') << double(latency_avg + latency_3dev);
+       if( std::isnan(latency_std_dev))
+         std::cout << " | dev " << std::setw(12) << std::setfill(' ') << latency_std_dev;
+       else 
+         std::cout << " | dev " << std::setw(12) << std::setfill(' ') << long(latency_std_dev);
+
+       double sigma = double(latency_avg + latency_std_dev); // 68% of all samples are less than sigma
+       if( std::isnan( sigma ))
+         std::cout << " | sig " << std::setw(12) << std::setfill(' ') << sigma;
+       else
+         std::cout << " | sig " << std::setw(12) << std::setfill(' ') << long(sigma);
+
+       double sigma2 = double(latency_avg + latency_2dev); // 95% of all samples are less than 2 sigmas
+       if( std::isnan( sigma ))
+         std::cout << " | 2sig " << std::setw(12) << std::setfill(' ') << sigma2;
+       else
+         std::cout << " | 2sig " << std::setw(12) << std::setfill(' ') << long(sigma2);
+
+       double sigma3 = double(latency_avg + latency_3dev); // 99.7% of all samples are less than 3 sigmas
+       if( std::isnan( sigma ))
+         std::cout << " | 3sig " << std::setw(12) << std::setfill(' ') << sigma3;
+       else
+         std::cout << " | 3sig " << std::setw(12) << std::setfill(' ') << long(sigma3);
+
 
 
        //std::cout << "\nHistogram column = latency (log2) ;  cell value  = Log2 count\n\n";

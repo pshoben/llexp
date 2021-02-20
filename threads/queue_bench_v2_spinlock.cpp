@@ -43,7 +43,7 @@ TimespecPair * create_samples( unsigned int max_writes )
   return samples;
 }
 
-void * reader_thread_func( void * args ) 
+void * reader_thread_func( __attribute__((unused)) void * args ) 
 {
     take_mutex();
  
@@ -103,7 +103,7 @@ void * reader_thread_func( void * args )
      return nullptr;
 }
 
-void * writer_thread_func( void * args ) 
+void * writer_thread_func( __attribute__((unused)) void * args ) 
 {
     take_mutex();
     release_mutex();

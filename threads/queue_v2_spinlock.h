@@ -16,7 +16,7 @@ public:
   static const size_t MAX_SAMPLES = 1000000U;
  
   QueueWrapper() {
-     int success = pthread_spin_init( &spinlock, PTHREAD_PROCESS_PRIVATE );
+     int success = pthread_spin_init( &spinlock, PTHREAD_PROCESS_SHARED );
      if( success != 0 ) {
         // TODO
         // EAGAIN - no resources
@@ -86,7 +86,7 @@ public:
            // EINVAL - lock not initialised
          }
    
-         clock_gettime( CLOCK_REALTIME, &next_sample->read_time );
+         clock_gettime( CLOCK_REALTIME, &( next_sample->read_time ));
          next_sample++;
   
       } else {

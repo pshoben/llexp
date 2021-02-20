@@ -8,8 +8,9 @@
 #include <stdint.h>
 #include "common.h"
 #include <algorithm>
-//#include <atomic>
 #include "message_stats.h"
+#include <pthread.h>
+#include <unistd.h>
 
 using std::vector;
 using std::mutex;
@@ -19,152 +20,131 @@ unsigned int g_num_thread_pairs=2;
 unsigned int g_max_samples=1000000;
 unsigned int g_msg_per_sec=100;
 double g_mb_per_sec = calculate_throughput_mb( g_msg_per_sec, g_msg_size );
+unsigned int g_max_writes;
 
 bool g_verbose = false;
 
-MessageStats * g_stats;
+MessageStats * g_stats = nullptr;
+QueueWrapper g_queue{};
+std::mutex g_mutex;
 
+void take_mutex() { 
+  g_mutex.lock(); 
+}
+void release_mutex() {
+  g_mutex.unlock();
+}
 
-void start_threads( unsigned int num_threads, vector<std::thread> & threads, const char * msg, int is_reader )
+TimespecPair * create_samples( unsigned int max_writes )
 {
-  QueueWrapper queue{};
-  mutex iomutex;
-  unsigned int max_writes = g_max_samples / g_num_thread_pairs; 
-  bool verbose = g_verbose;
+  TimespecPair * samples;
+  samples = new TimespecPair[ max_writes ] ;
+  std::memset( samples, 0, sizeof( TimespecPair ) * max_writes ) ;
+  return samples;
+}
 
-  g_stats = new MessageStats{ "v1", max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
-  MessageStats * stats = g_stats;
-
-
-  for (unsigned i = 0; i < num_threads; ++i) {
-
-    if( is_reader ) 
-    {
-       
-       //std::cout << "is_reader#0 " << i << "\n"; // TODO
-       //stats->histogram_all->scale_row();
-       // reader thread lambda
-       threads[i] = std::thread([ verbose, &iomutex, i, msg, &queue, max_writes, stats ] {
-       TimespecPair * samples ;
-       {
-          std::lock_guard<mutex> iolock(iomutex);
-          //std::cout << "is_reader#1 " << i << "\n"; // TODO
-          //stats.histogram_all->scale_row();
-
-          samples = new TimespecPair[ max_writes ] ;
-          std::memset( samples, 0, sizeof( TimespecPair ) * max_writes ) ;
-
-         // std::cout << "is_reader#2 " << i << "\n"; // TODO
-         // stats->histogram_all->scale_row();
-       }
-
-       TimespecPair * next_sample = samples;
-       if( verbose )
-       {
-          std::lock_guard<mutex> iolock(iomutex);
-          std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << " - " << msg << " waiting for " << max_writes << " msgs\n";
-       }
-
-       unsigned int num_reads = 0;
-
-       //std::cout << "is_reader#3 " << i << "\n"; // TODO
-       //stats->histogram_all->scale_row();
-
-       while( true ) {
-
-         TimespecPair * current_sample = next_sample;
-         next_sample = queue.read( next_sample ) ; 
-         if( next_sample != current_sample )
-         {
-            num_reads ++;
-
-//            if( verbose ) 
-//            {
-//              std::lock_guard<mutex> iolock(iomutex);
-//              std::cout << "Reader Thread #" << i << ": on CPU " << sched_getcpu()
-//              << " num reads = " << num_reads  
-//              << " write time = " << current_sample->write_time.tv_sec << "." << current_sample->write_time.tv_nsec
-//              << " read time = " << current_sample->read_time.tv_sec << "." << current_sample->read_time.tv_nsec
-//              << " latency = " << timespec_diff_ns( current_sample->write_time, current_sample->read_time )  << "\n";
-//            }
-         }
-         // check if all msgs received so exit thread:
-         if( num_reads >= max_writes ) {
-           if( verbose )
-           {
-              std::lock_guard<mutex> iolock(iomutex);
-              std::cout << "Read Thread #" << i << ": on CPU " << sched_getcpu() << " - done \n";
-           }
-           break;
-         }
-         // no delay - readers run "hot"
-        }
-        {
-            std::lock_guard<mutex> iolock(iomutex);
-            if( verbose ) {
-              std::cout << "Read Thread #" << i << ": on CPU " << sched_getcpu() << " - read " << num_reads << " msgs \n";
-            }
-            // end reader : submit results to stats engine
-            stats->add_batch( samples ) ;
-        }
-      });
-    } else {
-
-      double msg_per_sec = (double) g_msg_per_sec;
-      long target_delay = ((long)(double)(1000000000.0 / msg_per_sec)) ;
-      // writer thread lambda
-      threads[i] = std::thread([ verbose, &iomutex, i, msg, &queue, max_writes, msg_per_sec, target_delay ] {
-
-          if( verbose )
-          {
-              std::lock_guard<mutex> iolock(iomutex);
-              std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << " - " << msg << " writing " << max_writes << " msgs at rate " << msg_per_sec << " msg/sec with target delay " << target_delay << " ns per msg\n";
-          }
-          unsigned int count = 0;  
-          long adjusted_wait_time = target_delay;
-          struct timespec prev_write_time = {0,0}; 
-          while( count < max_writes ) 
-          {
-              struct timespec write_time = queue.write() ;
-              count++;
-
-              if( prev_write_time.tv_sec != 0 ) {
-                  long write_delay = timespec_diff_ns( prev_write_time, write_time ) ;
-                  adjusted_wait_time = target_delay - write_delay ;
-//          {
-//              std::lock_guard<mutex> iolock(iomutex);
-//              std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() 
-//              << " target delay " << target_delay << " write delay " << write_delay << " adjusted wait time " << adjusted_wait_time << "\n";
-//          }
+void * reader_thread_func( __attribute__((unused)) void * args ) 
+{
+    take_mutex();
  
-              } 
-              if( adjusted_wait_time > 0 ) { 
-                // Simulate important work done by the thread by sleeping for a bit...
-                std::this_thread::sleep_for( std::chrono::nanoseconds( adjusted_wait_time ));
-              }
+    TimespecPair * samples = create_samples( g_max_writes );
+    g_stats->add_batch( samples ) ;
+    TimespecPair * next_sample = samples;
+ 
+    release_mutex();
+ 
+    unsigned int num_reads = 0;
 
-             prev_write_time = write_time;
-          }
-          if( verbose )
-          {
-             std::lock_guard<mutex> iolock(iomutex);
-             std::cout << "Thread #" << i << ": on CPU " << sched_getcpu() << " finished after " << count << " write ops " << "\n";
-          }
-      });
+    while( true ) {
+ 
+      TimespecPair * current_sample = next_sample;
+ 
+      next_sample = g_queue.read( next_sample ) ; 
+ 
+      if( next_sample != current_sample && ( !( next_sample == nullptr )))
+      {
+         num_reads ++;
+ 
+ ////            if( verbose ) 
+ ////            {
+ //              unsigned int latency = timespec_diff_ns( current_sample->write_time, current_sample->read_time );
+ //              if( latency > 1000000 ) {
+ //                std::lock_guard<mutex> g_mutex(queue.g_mutex);
+ //                std::cout << "Reader Thread #" << i << ": on CPU " << sched_getcpu()
+ //                << " num reads = " << num_reads  
+ //                << " write time = " << current_sample->write_time.tv_sec << "." << current_sample->write_time.tv_nsec
+ //                << " read time = " << current_sample->read_time.tv_sec << "." << current_sample->read_time.tv_nsec
+ //                << " latency = " << timespec_diff_ns( current_sample->write_time, current_sample->read_time )  << "\n";
+ //              }
+ ////            }
+      }
+ 
+      // check if all msgs received so exit thread:
+      if( num_reads >= g_max_writes ) 
+      {
+        if( g_verbose )
+        {
+           take_mutex();
+           std::cout << "Read Thread on CPU " << sched_getcpu() << " - done \n";
+           release_mutex();
+        }
+        break;
+      }
+      // no delay - readers run hot
+     }
+ 
+     {
+         take_mutex();
+         if( g_verbose ) {
+           std::cout << "Read Thread on CPU " << sched_getcpu() << " - read " << num_reads << " msgs \n";
+         }
+         release_mutex();
+     }
+     return nullptr;
+}
+
+void * writer_thread_func( __attribute__((unused)) void * args ) 
+{
+    take_mutex();
+    release_mutex();
+
+    long target_delay = ((long)(double)(1000000000.0 / g_msg_per_sec)) ;
+
+    if( g_verbose )
+    {
+        take_mutex();
+        std::cout << "Writer Thread on CPU " << sched_getcpu() << " - writing " << g_max_writes << " msgs at rate " << g_msg_per_sec << " msg/sec with target delay " << target_delay << " ns per msg\n";
+        release_mutex();
     }
-    // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
-    // only CPU i as set.
+    unsigned int count = 0;  
+    long adjusted_wait_time = target_delay;
+    struct timespec prev_write_time = {0,0}; 
 
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(i*2+is_reader+1, &cpuset);
-    int rc = pthread_setaffinity_np(threads[i].native_handle(),
-                                    sizeof(cpu_set_t), &cpuset);
-//    if (rc != 0) 
-//    {
-//      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
-//    }
-  }
+    while( count < g_max_writes ) 
+    {
+        struct timespec write_time = g_queue.write() ;
+        count++;
+
+        if( prev_write_time.tv_sec != 0 ) {
+
+            long write_delay = timespec_diff_ns( prev_write_time, write_time ) ;
+            adjusted_wait_time = target_delay - write_delay ;
+        } 
+
+        if( adjusted_wait_time > 0 ) { 
+          std::this_thread::sleep_for( std::chrono::nanoseconds( adjusted_wait_time ));
+        }
+
+       prev_write_time = write_time;
+    }
+
+    if( g_verbose )
+    {
+         take_mutex();
+         std::cout << "Thread on CPU " << sched_getcpu() << " finished after " << count << " write ops " << "\n";
+         release_mutex();
+    }
+    return nullptr;
 }
 
 int main(int argc, char * const * argv) 
@@ -175,12 +155,10 @@ int main(int argc, char * const * argv)
     {
       case 'v':
         g_verbose = true;
-//        printf("got -v verbose mode \n"); 
         break;
       case 'n':
       {
         g_num_thread_pairs = std::max(1,atoi(optarg)/2);
-//        printf("got -n num threads = %d thread pairs\n", g_num_thread_pairs); 
         break;
       }
       case 'm':
@@ -189,45 +167,63 @@ int main(int argc, char * const * argv)
         if ( max_samples < g_max_samples )  {
            g_max_samples = max_samples;
         }
-//        printf("got -m num messages = %u , using value %u (max %u)\n", max_samples,  g_max_samples, 1000000); 
         break;
       }
       case 'r':
       {
         g_msg_per_sec = (unsigned int) atoi(optarg);
         g_mb_per_sec = calculate_throughput_mb( g_msg_per_sec, g_msg_size );
-//        printf("got -r rate = %u messages per sec ( = %0.3f MBytes/sec using msg size = %lu bytes)\n", g_msg_per_sec, g_mb_per_sec, g_msg_size ); 
         break;
       }
       case 't':
       {
         g_mb_per_sec = atof(optarg);
         g_msg_per_sec = calculate_throughput_msgs( g_mb_per_sec, g_msg_size );
-//        printf("got -t throughput = %u messages per sec ( = %0.3f MBytes/sec using msg size = %lu bytes)\n", g_msg_per_sec, g_mb_per_sec, g_msg_size ); 
         break;
       }
- 
       case '?':
       default:
         printf("usage: (-v (=verbose)) (-m num-messages) (-r rate-msg-per-sec) (-t throughput-MB-per-sec) -n num-threads\n");
         exit(0);
      }
   }
-//  printf("usage: (-v (=verbose)) (-m num-messages) (-r rate-msg-per-sec) (-t throughput-MB-per-sec)  -n num-threads\n");
-//  printf("running with %d thread pairs (%d threads)\n", g_num_thread_pairs, g_num_thread_pairs * 2); 
 
-  vector<std::thread> reader_threads( g_num_thread_pairs );
-  vector<std::thread> writer_threads( g_num_thread_pairs );
+  g_max_writes = g_max_samples / g_num_thread_pairs; 
 
-  start_threads( g_num_thread_pairs, reader_threads, "Reader " , 1 );
-  start_threads( g_num_thread_pairs, writer_threads, "Writer " , 0 );
+  g_stats = new MessageStats{ "v1", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
-  for (auto& t : reader_threads) {
-    t.join();
+  pthread_t reader_threads[ g_num_thread_pairs ];
+  pthread_t writer_threads[ g_num_thread_pairs ];
+
+  pthread_attr_t attr;
+  pthread_attr_init( &attr );
+
+  cpu_set_t cpuset;
+
+  for( unsigned int i = 0 ; i < g_num_thread_pairs ; i++ ) 
+  {
+      // create writer at odd numbered cpu:
+      CPU_ZERO( &cpuset );
+      CPU_SET( i*2 + 1, &cpuset );
+
+      pthread_attr_setaffinity_np( &attr, sizeof( cpu_set_t ), &cpuset );
+      pthread_create( &writer_threads[i], &attr, writer_thread_func, NULL );
+
+      // create reader at even numbered cpu:
+      CPU_ZERO( &cpuset );
+      CPU_SET( i*2 + 2, &cpuset );
+
+      pthread_attr_setaffinity_np( &attr, sizeof( cpu_set_t ), &cpuset );
+      pthread_create( &reader_threads[i], &attr, reader_thread_func, NULL );
   }
-  for (auto& t : writer_threads) {
-    t.join();
+
+  for( unsigned int i = 0 ; i < g_num_thread_pairs ; i++ ) 
+  { 
+    pthread_join( writer_threads[i], NULL );
+    pthread_join( reader_threads[i], NULL );
   }
+
   g_stats->print_stats();
-}
 
+  exit(0);
+}

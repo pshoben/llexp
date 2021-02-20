@@ -4,7 +4,7 @@ project(llexp)
 #set (CMAKE_CXX_STANDARD 2a)
 
 #set (CMAKE_CXX_FLAGS " -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O2 -Wno-unused -fsanitize=address ")
-set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 ")
+set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O2 ")
 
 add_executable(tcp_relay llnet/tcp_relay.cpp)
 #target_link_libraries(tcp_relay rt asan)

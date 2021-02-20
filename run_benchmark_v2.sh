@@ -1,7 +1,7 @@
 #!/bin/bash
 #set -v
 
-export BENCHMARK_BINARY=queue_bench
+export BENCHMARK_BINARY=queue_bench_v2
 
 function run_with_threads {
    
@@ -25,17 +25,15 @@ function run_with_threads {
     echo ""
 }
 
+#COL_HEADER="|num threads| rate - msg/sec | total msg count | latency avg (ns) | latency stddev ns| latency sigma ns | latency 2sigma ns | latency 3sigma ns | hist 0123456789ABCDEFGHIJKLMNOPQRSTUV"
+# SEPARATOR="|-----------|----------------|-----------------|------------------|------------------|------------------|-------------------|-------------------|--------------------------------------"
 
 COL_HEADER="|num threads| rate - msg/sec | total msg count | lat med ns | lat 90p ns | lat 95p ns | lat 99p ns |lat 99.5p ns|lat 99.7p ns| lat max ns | 0123456789ABCDEFGHIJKLMNOPQRSTUVXYZ log2 hist"
  SEPARATOR="|-----------|----------------|-----------------|------------|------------|------------|------------|------------|------------|------------|----------------------------------------------"
 
 
-
-#COL_HEADER="|num threads| rate - msg/sec | total msg count | latency avg (ns) | latency stddev ns| latency sigma ns | latency 2sigma ns | latency 3sigma ns | hist 0123456789ABCDEFGHIJKLMNOPQRSTUV"
-#SEPARATOR="|-----------|----------------|-----------------|------------------|------------------|------------------|-------------------|-------------------|--------------------------------------"
-
 echo ""
-echo "# Running Queue Latency Benchmark #1 (algorithm = std::queue with std::mutex )"
+echo "# Running Queue Latency Benchmark #2 (algorithm = std::queue with pthread_spinlock )"
 echo ""
 
 echo "All test runs performed on [Target Hardware](target_architecture.md)"

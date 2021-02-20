@@ -28,8 +28,8 @@ function run_with_threads {
 #COL_HEADER="|num threads| rate - msg/sec | total msg count | latency avg (ns) | latency stddev ns| latency sigma ns | latency 2sigma ns | latency 3sigma ns | hist 0123456789ABCDEFGHIJKLMNOPQRSTUV"
 # SEPARATOR="|-----------|----------------|-----------------|------------------|------------------|------------------|-------------------|-------------------|--------------------------------------"
 
-COL_HEADER="|num threads| rate - msg/sec | total msg count | lat med ns | lat 90p ns | lat 95p ns | lat 99p ns |lat 99.5p ns|lat 99.7p ns| lat max ns | 0123456789ABCDEFGHIJKLMNOPQRSTUVXYZ log2 hist"
- SEPARATOR="|-----------|----------------|-----------------|------------|------------|------------|------------|------------|------------|------------|----------------------------------------------"
+COL_HEADER="| name | cpus | rate - msg/sec | total msg count | lat med ns | lat 90p ns | lat 95p ns | lat 99p ns |lat 99.5p ns|lat 99.7p ns| lat max ns | 0123456789ABCDEFGHIJKLMNOPQRSTUVXYZ"
+ SEPARATOR="|------|------|----------------|-----------------|------------|------------|------------|------------|------------|------------|------------|------------------------------------"
 
 
 echo ""

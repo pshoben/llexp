@@ -150,7 +150,7 @@ public:
 
 class MessageStats {
 public:
-   unsigned int num_batches;
+   string name;
    unsigned int max_writes;
    unsigned int num_samples_per_sec;
    unsigned int num_thread_pairs;
@@ -160,14 +160,14 @@ public:
 
    ScaleRow * histogram_all;
 
-   MessageStats( unsigned int pnum_batches, unsigned int pmax_writes, unsigned int pnum_samples_per_sec, unsigned int pnum_thread_pairs ) 
-               : num_batches( pnum_batches ), 
+   MessageStats( string pname, unsigned int pmax_writes, unsigned int pnum_samples_per_sec, unsigned int pnum_thread_pairs ) 
+               : name( pname ),
                  max_writes( pmax_writes ), 
                  num_samples_per_sec( pnum_samples_per_sec ),
                  num_thread_pairs( pnum_thread_pairs ),
                  histogram_all( new ScaleRow( num_samples_per_sec )) 
    {
-       all_latencies.reserve( pmax_writes * pnum_batches );
+       all_latencies.reserve( pmax_writes * pnum_thread_pairs );
    }
    ~MessageStats()
    {
@@ -179,15 +179,10 @@ public:
 
    void process_batch( TimespecPair * batch, __attribute__((unused))bool first_batch ) 
    {
-      //unsigned int ignore_first_n_entries = 1000 ;
-      //std::cout << "processing a batch\n";
       unsigned int count=0;
       TimespecPair * p_batch_entry = batch;
       while( count < max_writes ) {
          long latency = timespec_diff_ns( p_batch_entry->write_time, p_batch_entry->read_time ); 
-         //if( count <= ignore_first_n_entries ) {
-         //   std::cout << "cold latency : " << latency << "\n";
-         //} 
          latency_sum += latency;
          if( latency < latency_min) latency_min = latency;
          if( latency > latency_max) latency_max = latency;
@@ -235,8 +230,10 @@ public:
        auto latency_99_7th_pct = all_latencies[ (all_latencies.size() * 997.0) / 1000.0 ];
 
        auto latency_100th_pct = all_latencies[ all_latencies.size()-1 ] ;
-       
-       std::cout << "| " << std::setw(9) << std::setfill(' ') << num_thread_pairs*2 ; 
+      
+       std::cout << "| " << std::setw(4) << std::setfill(' ') << name ; 
+ 
+       std::cout << " | " << std::setw(4) << std::setfill(' ') << num_thread_pairs*2 ; 
   
        std::cout << " | " << std::setw(14) << std::setfill(' ') << num_samples_per_sec ;
        std::cout << " | " << std::setw(15) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
@@ -248,6 +245,8 @@ public:
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_99_5th_pct ; 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_99_7th_pct ; 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_100th_pct ; 
+
+// avg / stddev stuff
 
 //       latency_avg = double(latency_sum) / double(total_count) ;
 //       if( std::isnan(latency_avg))
@@ -292,12 +291,7 @@ public:
 
    void add_batch( TimespecPair * batch ) 
    {
-       std::lock_guard guard(mutex);
        batches.push_back(batch);
- 
-       if( batches.size() == num_batches ) {
-          print_stats();
-       }
    }
 
  private:

@@ -38,6 +38,9 @@ public:
  
   struct timespec write() 
   {
+     struct timespec write_time;
+     clock_gettime( CLOCK_REALTIME, &write_time );
+ 
      int success = pthread_spin_lock( &spinlock );
      if( success != 0 ) {
         // TODO
@@ -47,8 +50,6 @@ public:
  
      } else {    
  
-       struct timespec write_time;
-       clock_gettime( CLOCK_REALTIME, &write_time );
        queue.push( write_time );
    
        success = pthread_spin_unlock( &spinlock );

@@ -32,10 +32,9 @@ public:
 
  struct timespec write() 
  {
-    queue_mutex.lock();
-
     struct timespec write_time;
     clock_gettime( CLOCK_MONOTONIC, &write_time );
+    queue_mutex.lock();
     queue.push( write_time );
     queue_mutex.unlock();
     return write_time;

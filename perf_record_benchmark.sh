@@ -1,13 +1,15 @@
 #!/bin/bash
 #set -v
 
+# usage:  perf_record_benchmark v1
+
 function fecho {
     echo $1 >> perf_run.out
 }
 
 function run_with_threads {
    
-    nice -n -20 build/threads/queue_bench  -m 5000000 -r 5000 -n $1 2>&1 >> perf_run.out & export PID=$(echo $!) 
+    nice -n -20 build/threads/queue_bench_v${1}  -m 5000000 -r 5000 -n $1 2>&1 >> perf_run.out & export PID=$(echo $!) 
     echo "got PID=$PID"
     sleep 1
     ps -leaf | egrep 'PID|queue_bench' | grep -v grep

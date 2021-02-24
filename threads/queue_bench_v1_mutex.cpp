@@ -11,6 +11,8 @@
 #include "message_stats.h"
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 using std::vector;
 using std::mutex;
@@ -51,6 +53,12 @@ void * reader_thread_func( __attribute__((unused)) void * args )
     g_stats->add_batch( samples ) ;
     TimespecPair * next_sample = samples;
  
+    if( g_verbose )
+    {
+        pid_t tid = syscall( __NR_gettid );
+        std::cout << "Reader Thread ID " << tid << " on CPU " << sched_getcpu() << " - reading " << g_max_writes << " msgs\n";
+    }
+
     release_mutex();
  
     unsigned int num_reads = 0;
@@ -113,7 +121,8 @@ void * writer_thread_func( __attribute__((unused)) void * args )
     if( g_verbose )
     {
         take_mutex();
-        std::cout << "Writer Thread on CPU " << sched_getcpu() << " - writing " << g_max_writes << " msgs at rate " << g_msg_per_sec << " msg/sec with target delay " << target_delay << " ns per msg\n";
+        pid_t tid = syscall( __NR_gettid );
+        std::cout << "Writer Thread ID " << tid << " on CPU " << sched_getcpu() << " - writing " << g_max_writes << " msgs at rate " << g_msg_per_sec << " msg/sec with target delay " << target_delay << " ns per msg\n";
         release_mutex();
     }
     unsigned int count = 0;  
@@ -131,8 +140,9 @@ void * writer_thread_func( __attribute__((unused)) void * args )
             adjusted_wait_time = target_delay - write_delay ;
         } 
 
-        if( adjusted_wait_time > 0 ) { 
-          std::this_thread::sleep_for( std::chrono::nanoseconds( adjusted_wait_time ));
+        if( adjusted_wait_time > 0 ) {
+          spin_for_nanos( adjusted_wait_time ); 
+          //std::this_thread::sleep_for( std::chrono::nanoseconds( adjusted_wait_time ));
         }
 
        prev_write_time = write_time;

@@ -10,20 +10,36 @@ typedef struct TimespecPair {
   Timespec read_time; // = {0,0};
 } TimespecPair;
 
-  inline long timespec_diff_ns(struct timespec start_time, struct timespec end_time )
-  {
-    // return total difference in nanoseconds between start time and end time (combining the seconds and ns members into a single value)
-    // expects end time > start time
-    // will overflow if the difference is too large to be expressed in the available range
-    //const time_t max_seconds = (time_t) INT32_MAX;
-    time_t diff_secs = end_time.tv_sec - start_time.tv_sec;
-    if( diff_secs > 0 ) {
-        return (long)(diff_secs * 1000000000L) + end_time.tv_nsec - start_time.tv_nsec;
-    } else {
-        return end_time.tv_nsec - start_time.tv_nsec;
-    }
-  }
+inline long timespec_diff_ns( struct timespec start_time, struct timespec end_time )
+{
+  // return total difference in nanoseconds between start time and end time (combining the seconds and ns members into a single value)
+  // expects end time > start time
+  // will overflow if the difference is too large to be expressed in the available range
+  //const time_t max_seconds = (time_t) INT32_MAX;
 
+  time_t diff_secs = end_time.tv_sec - start_time.tv_sec;
+  if( diff_secs > 0 ) {
+      return (long)(diff_secs * 1000000000L) + end_time.tv_nsec - start_time.tv_nsec;
+  } else {
+      return end_time.tv_nsec - start_time.tv_nsec;
+  }
+}
+
+inline void spin_for_nanos( long wait_time ) 
+{
+    struct timespec start_time;
+    struct timespec end_time;
+
+    clock_gettime( CLOCK_MONOTONIC, &start_time );
+
+    long diff = 0;
+    do {
+       clock_gettime( CLOCK_MONOTONIC, &end_time );
+   
+       diff =  timespec_diff_ns( start_time,  end_time );
+    } while ( diff < wait_time ); 
+}
+ 
 
 inline double calculate_throughput_mb(unsigned int msg_per_sec, size_t msg_size ) 
 {

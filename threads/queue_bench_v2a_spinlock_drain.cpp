@@ -66,13 +66,14 @@ void * reader_thread_func( __attribute__((unused)) void * args )
 
     while( true ) {
  
-      TimespecPair * current_sample = next_sample;
+      //TimespecPair * current_sample = next_sample;
+
+      unsigned int num_drained = g_queue.drain( next_sample, std::min( 100U, g_max_writes - num_reads )) ; 
  
-      next_sample = g_queue.read( next_sample ) ; 
- 
-      if( next_sample != current_sample && ( !( next_sample == nullptr )))
+      if( num_drained > 0 ) 
       {
-         num_reads ++;
+         next_sample += num_drained;
+         num_reads += num_drained;
  
  ////            if( verbose ) 
  ////            {
@@ -201,7 +202,7 @@ int main(int argc, char * const * argv)
 
   g_max_writes = g_max_samples / g_num_thread_pairs; 
 
-  g_stats = new MessageStats{ "spinlock ", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
+  g_stats = new MessageStats{ "spindrain", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
   pthread_t reader_threads[ g_num_thread_pairs ];
   pthread_t writer_threads[ g_num_thread_pairs ];

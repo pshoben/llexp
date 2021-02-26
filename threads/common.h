@@ -3,6 +3,8 @@
 #include <time.h>
 #include <stdint.h>
 
+#define USE_CLOCK_TYPE CLOCK_REALTIME
+
 typedef struct timespec Timespec;
 
 typedef struct TimespecPair {
@@ -30,11 +32,11 @@ inline void spin_for_nanos( long wait_time )
     struct timespec start_time;
     struct timespec end_time;
 
-    clock_gettime( CLOCK_MONOTONIC, &start_time );
+    clock_gettime( USE_CLOCK_TYPE, &start_time );
 
     long diff = 0;
     do {
-       clock_gettime( CLOCK_MONOTONIC, &end_time );
+       clock_gettime( USE_CLOCK_TYPE, &end_time );
    
        diff =  timespec_diff_ns( start_time,  end_time );
     } while ( diff < wait_time ); 

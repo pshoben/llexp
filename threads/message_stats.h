@@ -107,7 +107,7 @@ public:
       if(base < 2 || base >= sizeof(digits)) return NULL;
       if(buff) {
           do {
-              *buff++ = digits[abs(num % base)];
+              *buff++ = digits[abs((int)(num % base))];
               num /= base;
           }while(num);
           if(sign) {
@@ -152,7 +152,7 @@ class MessageStats {
 public:
    string name;
    unsigned int max_writes;
-   unsigned int num_samples_per_sec;
+   unsigned int msg_per_sec;
    unsigned int num_thread_pairs;
    std::vector< TimespecPair *> batches;
    std::mutex mutex;
@@ -160,12 +160,12 @@ public:
 
    ScaleRow * histogram_all;
 
-   MessageStats( string pname, unsigned int pmax_writes, unsigned int pnum_samples_per_sec, unsigned int pnum_thread_pairs ) 
+   MessageStats( string pname, unsigned int pmax_writes, unsigned int pmsg_per_sec, unsigned int pnum_thread_pairs ) 
                : name( pname ),
                  max_writes( pmax_writes ), 
-                 num_samples_per_sec( pnum_samples_per_sec ),
+                 msg_per_sec( pmsg_per_sec ),
                  num_thread_pairs( pnum_thread_pairs ),
-                 histogram_all( new ScaleRow( num_samples_per_sec )) 
+                 histogram_all( new ScaleRow( msg_per_sec )) 
    {
        all_latencies.reserve( pmax_writes * pnum_thread_pairs );
    }
@@ -235,7 +235,7 @@ public:
  
        std::cout << " | " << std::setw(4) << std::setfill(' ') << num_thread_pairs*2 ; 
   
-       std::cout << " | " << std::setw(14) << std::setfill(' ') << num_samples_per_sec ;
+       std::cout << " | " << std::setw(14) << std::setfill(' ') << msg_per_sec ;
        std::cout << " | " << std::setw(15) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_50th_pct ; 

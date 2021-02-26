@@ -200,7 +200,7 @@ int main(int argc, char * const * argv)
 
   g_max_writes = g_max_samples / g_num_thread_pairs; 
 
-  g_stats = new MessageStats{ "v1", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
+  g_stats = new MessageStats{ "mutex    ", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
   pthread_t reader_threads[ g_num_thread_pairs ];
   pthread_t writer_threads[ g_num_thread_pairs ];

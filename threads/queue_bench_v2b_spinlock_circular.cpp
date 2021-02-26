@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdio>
 #include <unistd.h>
-#include "queue_v2_spinlock.h"
+#include "queue_v2b_spinlock_circular.h"
 #include <stdint.h>
 #include "common.h"
 #include <algorithm>
@@ -201,7 +201,7 @@ int main(int argc, char * const * argv)
 
   g_max_writes = g_max_samples / g_num_thread_pairs; 
 
-  g_stats = new MessageStats{ "spinlock ", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
+  g_stats = new MessageStats{ "spin  cb ", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
   pthread_t reader_threads[ g_num_thread_pairs ];
   pthread_t writer_threads[ g_num_thread_pairs ];

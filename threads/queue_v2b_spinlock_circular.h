@@ -6,10 +6,11 @@
 #include "common.h"
 #include <pthread.h>
 #include <memory>
+#include <boost/circular_buffer.hpp>
 
 struct QueueWrapper {
 public:
-  std::queue<struct timespec> queue;
+  boost::circular_buffer<struct timespec> queue{ 1000U };
   pthread_spinlock_t spinlock;
   const struct timespec null_time{0,0};
  
@@ -50,7 +51,7 @@ public:
  
      } else {    
  
-       queue.push( write_time );
+       queue.push_back( write_time );
    
        success = pthread_spin_unlock( &spinlock );
        if( success != 0 ) {
@@ -78,7 +79,7 @@ public:
       if( !queue.empty()) {
  
          next_sample->write_time = queue.front();
-         queue.pop();
+         queue.pop_front();
   
          success = pthread_spin_unlock( &spinlock );
          if( success != 0 ) {
@@ -122,7 +123,7 @@ public:
     while ( !queue.empty() && num_drained < max_num_drain ) {
  
       next_sample->write_time = queue.front();
-      queue.pop();
+      queue.pop_front();
  
       next_sample++;
       num_drained++;

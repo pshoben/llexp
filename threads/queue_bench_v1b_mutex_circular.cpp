@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdio>
 #include <unistd.h>
-#include "queue_v2_spinlock.h"
+#include "queue_v1b_mutex_circular.h"
 #include <stdint.h>
 #include "common.h"
 #include <algorithm>
@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
-
 
 using std::vector;
 using std::mutex;
@@ -141,7 +140,7 @@ void * writer_thread_func( __attribute__((unused)) void * args )
             adjusted_wait_time = target_delay - write_delay ;
         } 
 
-        if( adjusted_wait_time > 0 ) { 
+        if( adjusted_wait_time > 0 ) {
           spin_for_nanos( adjusted_wait_time ); 
           //std::this_thread::sleep_for( std::chrono::nanoseconds( adjusted_wait_time ));
         }
@@ -201,7 +200,7 @@ int main(int argc, char * const * argv)
 
   g_max_writes = g_max_samples / g_num_thread_pairs; 
 
-  g_stats = new MessageStats{ "spinlock ", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
+  g_stats = new MessageStats{ "mutex  cb", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
   pthread_t reader_threads[ g_num_thread_pairs ];
   pthread_t writer_threads[ g_num_thread_pairs ];

@@ -4,10 +4,13 @@
 #include <mutex>
 #include <cstring>
 #include "common.h"
+#include <boost/circular_buffer.hpp>
+
+//typedef struct timespec message_type ;
 
 struct QueueWrapper {
 public:
- std::queue<struct timespec> queue;
+ boost::circular_buffer<struct timespec> queue{ 1000U };
  std::mutex queue_mutex;
  const struct timespec null_time{0,0};
  
@@ -35,7 +38,7 @@ public:
     struct timespec write_time;
     clock_gettime( USE_CLOCK_TYPE, &write_time );
     queue_mutex.lock();
-    queue.push( write_time );
+    queue.push_back( write_time );
     queue_mutex.unlock();
     return write_time;
  }
@@ -46,7 +49,7 @@ public:
    if( !queue.empty()) {
 
      next_sample->write_time = queue.front();
-     queue.pop();
+     queue.pop_front();
      queue_mutex.unlock();
 
      // time copied to local memory - after lock released
@@ -69,7 +72,7 @@ public:
    while ( !queue.empty() && num_drained < max_num_drain ) {
 
      next_sample->write_time = queue.front();
-     queue.pop();
+     queue.pop_front();
 
      next_sample++;
      num_drained++;

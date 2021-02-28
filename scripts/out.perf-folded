@@ -1,0 +1,11 @@
+queue_bench_v3;[unknown];__vdso_clock_gettime 29
+queue_bench_v3;[unknown];clock_gettime@GLIBC_2.2.5 53
+queue_bench_v3;[unknown];clock_gettime@GLIBC_2.2.5;__vdso_clock_gettime 289
+queue_bench_v3;[unknown];clock_gettime@GLIBC_2.2.5;__vdso_clock_gettime;[[vdso]] 556
+queue_bench_v3;[unknown];clock_gettime@GLIBC_2.2.5;__vdso_clock_gettime;[[vdso]];apic_timer_interrupt;smp_apic_timer_interrupt;hrtimer_interrupt;__hrtimer_run_queues;tick_sched_timer;tick_sched_handle;update_process_times;scheduler_tick;task_tick_fair;__update_load_avg_se;__accumulate_pelt_segments 1
+queue_bench_v3;[unknown];clock_gettime@GLIBC_2.2.5;__vdso_clock_gettime;swapgs_restore_regs_and_return_to_usermode;prepare_exit_to_usermode;exit_to_usermode_loop;schedule;__schedule;finish_task_switch;__perf_event_task_sched_in;__intel_pmu_enable_all.constprop.31;native_write_msr 4
+queue_bench_v3;start_thread;clock_gettime@GLIBC_2.2.5 13
+queue_bench_v3;start_thread;clock_gettime@plt 10
+queue_bench_v3;start_thread;reader_thread_func 988
+queue_bench_v3;start_thread;reader_thread_func;swapgs_restore_regs_and_return_to_usermode;prepare_exit_to_usermode;exit_to_usermode_loop;schedule;__schedule;finish_task_switch;__perf_event_task_sched_in;__intel_pmu_enable_all.constprop.31;native_write_msr 4
+queue_bench_v3;start_thread;writer_thread_func 37

@@ -1,2 +1,0 @@
-benchmark_v1_record_results.sh
-benchmark_v2_record_results.sh

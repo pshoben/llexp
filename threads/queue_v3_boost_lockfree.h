@@ -59,10 +59,11 @@ public:
     struct timespec val;
     while( !queue.empty() && ( num_drained < max_num_drain )) 
     {
-      queue.pop( next_sample->write_time );
-      //next_sample->write_time = val;
-      next_sample++;
-      num_drained++;
+      if( queue.pop( next_sample->write_time )) {
+        //next_sample->write_time = val;
+        next_sample++;
+        num_drained++;
+      }
     }
 
     // time copied to local memory and after lock released

@@ -127,7 +127,7 @@ void * writer_thread_func( __attribute__((unused)) void * args )
         release_mutex();
     }
     unsigned int count = 0;  
-    long adjusted_wait_time = target_delay;
+    long adjusted_wait_time = 0;
     struct timespec prev_write_time = {0,0}; 
 
     while( count < g_max_writes ) 
@@ -138,7 +138,7 @@ void * writer_thread_func( __attribute__((unused)) void * args )
         if( prev_write_time.tv_sec != 0 ) {
 
             long write_delay = timespec_diff_ns( prev_write_time, write_time ) ;
-            adjusted_wait_time = target_delay - write_delay ;
+            adjusted_wait_time += target_delay - write_delay ;
         } 
 
         if( adjusted_wait_time > 0 ) {

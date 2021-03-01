@@ -2,8 +2,8 @@
 #set -v
 export EXE_DIR=../build/threads/
 
-COL_HEADER="| name ---- | cpus | rate - msg/sec | total msg count | lat med ns | lat 90p ns | lat 95p ns | lat 99p ns |lat 99.5p ns|lat 99.7p ns| lat max ns | 0123456789ABCDEFGHIJKLMNOPQRSTUVXYZ log2 hist"
- SEPARATOR="| ----------|------|----------------|-----------------|------------|------------|------------|------------|------------|------------|------------|----------------------------------------------"
+COL_HEADER="| name ---- | cpus | tot msg |targ m/s |actl m/s | lat med ns | lat 90p ns | lat 95p ns | lat 99p ns |lat 99.5p ns|lat 99.7p ns|lat 99.9p ns| lat max ns | throughput msg/sec log2 hist --- | latency log2 hist"
+ SEPARATOR="| ----------|------|---------|---------|---------|------------|------------|------------|------------|------------|------------|------------|------------|----------------------------------|----------------------------"
 
 function run_compare {
 
@@ -37,9 +37,9 @@ function run_with_threads {
 #    run_compare 5000       500 $1
 #    run_compare 7500       750 $1
     run_compare 10000     1000 $1
-    run_compare 25000     2500 $1
-    run_compare 50000     5000 $1
-    run_compare 75000     7500 $1
+#    run_compare 25000     2500 $1
+#    run_compare 50000     5000 $1
+#    run_compare 75000     7500 $1
     run_compare 100000   10000 $1
 #    run_compare 250000   25000 $1
 #    run_compare 500000   50000 $1
@@ -50,6 +50,9 @@ function run_with_threads {
 #    run_compare 15000000 1500000 $1
 #    run_compare 17500000 1750000 $1
 #    run_compare 20000000 2000000 $1
+
+    run_compare 10000000 1000000 $1
+
     echo ""
 }
 
@@ -63,7 +66,7 @@ echo "\`\`\`"
 echo ""
 
 run_with_threads 4 
-run_with_threads 2 
+#run_with_threads 2 
 
 echo ""
 echo "\`\`\`"

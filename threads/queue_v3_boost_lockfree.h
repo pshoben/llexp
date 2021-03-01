@@ -56,7 +56,7 @@ public:
     unsigned int num_drained = 0;
     TimespecPair * first_sample = next_sample;
 
-    struct timespec val;
+    //struct timespec val;
     while( !queue.empty() && ( num_drained < max_num_drain )) 
     {
       if( queue.pop( next_sample->write_time )) {

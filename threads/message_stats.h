@@ -26,8 +26,8 @@ public:
   // raw count values may be log(base2) scaled so that counts in the range 0-512 can be rendered as a single ascii dot for zero plus a single decimal digit in range 0-9 
   // and counts in the range 0-65536 can be represented by a single hex digit. larger counts can be represented by extending to base36 0-9..A-Z
   // 
-  // e.g. this rendering: "0123456789ABCDEFGHIJKLMNOPQRSTUV"
-  //                      "11     1 34                     "
+  // e.g. this rendering: ".0123456789ABCDEFGHIJKLMNOPQRSTUV"
+  //                      ".11     1 34                     "
   //
   // (representing the buckets : 0=1 1=1 2=0 3=0 4=0 5=0 6=0 7=1 8=0 9=3 10=4)
   // represents a log2 scale histogram rendering of these raw values : 0 1 100 312 500 510 520 800 830 1000 
@@ -38,10 +38,12 @@ public:
   int scaled[64];
   int row_count=0;
   int max_column=-1;
+  long sum;
+  double avg;
 
   time_t min_second=LONG_MAX;
  
-  const char digits[63] = ".123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  const char digits[63] = ".0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy";
 
   ScaleRow(int psamples_per_sec) : samples_per_sec( psamples_per_sec ) 
   {
@@ -53,22 +55,30 @@ public:
  
   void add_to_bucket( unsigned int val ) 
   {
+    if( val == 0 )
+       return;
     unsigned int width = BIT_WIDTH(val);
     counts[width]++;
     row_count++;
-    //std::cout << " adding " << val << " to bucket " << width << " giving count " << counts[width] << " \n";
+    sum += val;
+    //std::cout << " adding " << val << " at row_count " << row_count << " sum " << sum << "\n";
+    //double running_avg = (double)sum / ((double)row_count -  1);
+    //std::cout << " running avg " << running_avg << " reciprocal msg/sec = " << 1000000000.0 / running_avg << "\n";
+
   }
 
   void scale_row() 
   {
+    // convert each log2-bucket count to log2 value
     for( auto i = 0 ; i < 64 ; i++ ) { 
       unsigned int count = counts[i];
-      
       if( count > 0) {
         scaled[i]= BIT_WIDTH( count )+1;
       }
       //std::cout << " scaled[" << i << "] = " << scaled[i] << " count = " << count << " \n";
     }
+    // calculate average
+    avg = (double) sum / (double) row_count;
   }
 
   void calc_max_column() 
@@ -158,14 +168,19 @@ public:
    std::mutex mutex;
    std::vector<unsigned int>all_latencies;
 
-   ScaleRow * histogram_all;
+   ScaleRow * histogram_in; // input diffs (reciprocal of throughput)
+   ScaleRow * histogram_out; // queue latencies
+
+   double input_time_diff_sum = 0;
+   long   msg_count = 0;
 
    MessageStats( string pname, unsigned int pmax_writes, unsigned int pmsg_per_sec, unsigned int pnum_thread_pairs ) 
                : name( pname ),
                  max_writes( pmax_writes ), 
                  msg_per_sec( pmsg_per_sec ),
                  num_thread_pairs( pnum_thread_pairs ),
-                 histogram_all( new ScaleRow( msg_per_sec )) 
+                 histogram_in( new ScaleRow( msg_per_sec )), 
+                 histogram_out( new ScaleRow( msg_per_sec )) 
    {
        all_latencies.reserve( pmax_writes * pnum_thread_pairs );
    }
@@ -174,21 +189,48 @@ public:
       for( auto owned : batches ) {
           delete[] (owned);
       }
-      delete histogram_all;
+      delete histogram_in;
+      delete histogram_out;
    }
 
    void process_batch( TimespecPair * batch, __attribute__((unused))bool first_batch ) 
    {
       unsigned int count=0;
       TimespecPair * p_batch_entry = batch;
+      TimespecPair * p_prev_entry = nullptr ;
+
+//std::cout << "adding batch - max_writes = " <<  max_writes << "\n"; // TODO REMOVE
+
       while( count < max_writes ) {
          long latency = timespec_diff_ns( p_batch_entry->write_time, p_batch_entry->read_time ); 
          latency_sum += latency;
          if( latency < latency_min) latency_min = latency;
          if( latency > latency_max) latency_max = latency;
 
+         // output latency : store the diff between read time and write time
+
          all_latencies.push_back((unsigned int)latency);
-         histogram_all->add_to_bucket((unsigned int)latency);
+
+//std::cout << "adding output latency = " <<  latency << "\n"; // TODO REMOVE
+
+         histogram_out->add_to_bucket((unsigned int)latency);
+
+         // input throughput : store the diff between this write time and the previous write time
+
+         if( p_prev_entry ) 
+         {
+
+             long input_time_diff = timespec_diff_ns( p_prev_entry->write_time, p_batch_entry->write_time ); 
+             input_time_diff_sum += input_time_diff;
+
+             double l_msg_per_sec = 1000000000.0 / (double) input_time_diff;
+             histogram_in->add_to_bucket((unsigned int) l_msg_per_sec );
+
+            msg_count++;
+//std::cout << "adding input diff " <<  input_time_diff << " msg per sec " << l_msg_per_sec << " sum " << input_time_diff_sum << " count " << msg_count << "\n"; // TODO REMOVE
+//std::cout << "running avg " << (long)double( 1000000000.0 / ( (double)input_time_diff_sum / (double)msg_count )) <<" \n";  
+         }
+         p_prev_entry = p_batch_entry;
 
          p_batch_entry++;
          count++;
@@ -218,6 +260,8 @@ public:
            first_batch = false;
        }
 
+       histogram_in->scale_row();
+
        // calculate percentiles
 
        std::sort( all_latencies.begin(), all_latencies.end());
@@ -228,15 +272,19 @@ public:
        auto latency_99th_pct = all_latencies[ all_latencies.size() * 99 / 100 ];
        auto latency_99_5th_pct = all_latencies[ (all_latencies.size() * 995.0) / 1000.0 ];
        auto latency_99_7th_pct = all_latencies[ (all_latencies.size() * 997.0) / 1000.0 ];
+       auto latency_99_9th_pct = all_latencies[ (all_latencies.size() * 999.0) / 1000.0 ];
 
        auto latency_100th_pct = all_latencies[ all_latencies.size()-1 ] ;
       
        std::cout << "| " << std::setw(4) << std::setfill(' ') << name ; 
- 
        std::cout << " | " << std::setw(4) << std::setfill(' ') << num_thread_pairs*2 ; 
-  
-       std::cout << " | " << std::setw(14) << std::setfill(' ') << msg_per_sec ;
-       std::cout << " | " << std::setw(15) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
+ 
+       std::cout << " | " << std::setw(7) << std::setfill(' ') << total_count; //  << " sum latency  : " << latency_sum << "\n"; 
+
+ 
+       std::cout << " | " << std::setw(7) << std::setfill(' ') << msg_per_sec ; // target input message rate
+       std::cout << " | " << std::setw(7) << std::setfill(' ') << (long)double( 1000000000.0 / ( (double)input_time_diff_sum / (double)msg_count )); // achieved input message rate
+
 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_50th_pct ; 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_90th_pct ; 
@@ -244,6 +292,7 @@ public:
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_99th_pct ; 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_99_5th_pct ; 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_99_7th_pct ; 
+       std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_99_9th_pct ; 
        std::cout << " | " << std::setw(10) << std::setfill(' ') << latency_100th_pct ; 
 
 // avg / stddev stuff
@@ -285,8 +334,10 @@ public:
 //       else
 //         std::cout << " | " << std::setw(17) << std::setfill(' ') << long(sigma3);
 
-       histogram_all->scale_row();
-       std::cout << " | " << histogram_all->print_row() << "\n"; 
+       std::cout << " | " << std::setw(32) << std::left << std::setfill(' ') << histogram_in->print_row() ; 
+
+       histogram_out->scale_row();
+       std::cout << " | " << std::setw(32) << std::left << std::setfill(' ') << histogram_out->print_row() << "\n"; 
    }
 
    void add_batch( TimespecPair * batch ) 

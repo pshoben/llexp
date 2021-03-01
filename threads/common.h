@@ -31,7 +31,7 @@ inline void spin_for_nanos( long wait_time )
 {
     struct timespec start_time;
     struct timespec end_time;
-
+//std::cout << "waiting for " << wait_time << "\n";
     clock_gettime( USE_CLOCK_TYPE, &start_time );
 
     long diff = 0;

@@ -20,8 +20,8 @@ function run_with_threads {
     nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 50000 -r 5000 -n $1
     nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 75000 -r 7500 -n $1
     nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 100000 -r 10000 -n $1
-#    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 100000 -r 100000 -n $1
-#    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 1000000 -r 1000000 -n $1
+    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 100000 -r 100000 -n $1
+    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY}  -m 1000000 -r 1000000 -n $1
 
     echo ""
 }

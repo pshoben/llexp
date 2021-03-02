@@ -13,6 +13,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <algorithm>
+#include <atomic>
+
 
 
 using std::vector;
@@ -30,6 +33,12 @@ bool g_verbose = false;
 MessageStats * g_stats = nullptr;
 QueueWrapper g_queue{};
 std::mutex g_mutex;
+
+pthread_t reader_threads[ 4 ];
+pthread_t writer_threads[ 4 ];
+
+std::atomic<bool> g_running = true;
+std::atomic<unsigned int> g_num_readers_finished = 0;
 
 void take_mutex() { 
   g_mutex.lock(); 
@@ -64,7 +73,7 @@ void * reader_thread_func( __attribute__((unused)) void * args )
  
     unsigned int num_reads = 0;
 
-    while( true ) {
+    while( g_running && num_reads < g_max_writes ) {
  
       TimespecPair * current_sample = next_sample;
  
@@ -109,6 +118,7 @@ void * reader_thread_func( __attribute__((unused)) void * args )
          }
          release_mutex();
      }
+     g_num_readers_finished++;
      return nullptr;
 }
 
@@ -130,7 +140,7 @@ void * writer_thread_func( __attribute__((unused)) void * args )
     long adjusted_wait_time = 0;
     struct timespec prev_write_time = {0,0}; 
 
-    while( count < g_max_writes ) 
+    while( g_running && count < g_max_writes ) 
     {
         struct timespec write_time = g_queue.write() ;
         count++;
@@ -203,9 +213,6 @@ int main(int argc, char * const * argv)
 
   g_stats = new MessageStats{ "spinlock ", g_max_writes, (unsigned int) g_msg_per_sec, g_num_thread_pairs };
 
-  pthread_t reader_threads[ g_num_thread_pairs ];
-  pthread_t writer_threads[ g_num_thread_pairs ];
-
   pthread_attr_t attr;
   pthread_attr_init( &attr );
 
@@ -228,11 +235,17 @@ int main(int argc, char * const * argv)
       pthread_create( &reader_threads[i], &attr, reader_thread_func, NULL );
   }
 
-  for( unsigned int i = 0 ; i < g_num_thread_pairs ; i++ ) 
-  { 
-    pthread_join( writer_threads[i], NULL );
-    pthread_join( reader_threads[i], NULL );
+  int countdown = 10;
+
+  while( g_num_readers_finished < g_num_thread_pairs && countdown-- ) {
+    // wait for 10 secs before killing the threads
+    std::this_thread::sleep_for( std::chrono::seconds( 1 ));
   }
+
+  g_running = false;
+
+  // wait for 1 sec before printing 
+  std::this_thread::sleep_for( std::chrono::seconds( 1 ));
 
   g_stats->print_stats();
 

@@ -21,12 +21,12 @@ flipped = {}
 index = []
 
 def flip_data(sub_index):
-    #global index
+    global args 
     global flipped
     for col_name in sub_index:
         col_data = []
         for x in data:
-            if x.get('targ m/s') =='1000': 
+            if x.get('targ m/s') == args.rate : 
                 col_data.append(float(x[col_name]))
                 #index.append(x.get('name ----'))
         flipped[col_name]=col_data[:]
@@ -40,6 +40,7 @@ def getargs():
     global args
     parser = argparse.ArgumentParser("make_call_graph")
     parser.add_argument("filename")
+    parser.add_argument("rate")
     args = parser.parse_args()
 
 def add_col_names(line):
@@ -117,7 +118,7 @@ def plot():
     
     #plt.show() 
     #fig2 = df.gcf()
-    output_file_name = args.filename.replace(".md",".png")
+    output_file_name = args.filename.replace(".md","_"+args.rate+".png")
     plt.savefig(output_file_name,
                  dpi=100,
                  format="png")

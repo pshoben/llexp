@@ -7,7 +7,7 @@ INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 #set (CMAKE_CXX_STANDARD 2a)
 
 #set (CMAKE_CXX_FLAGS " -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O2 -Wno-unused -fsanitize=address ")
-set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 -Wno-vla ")
+set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 -Wno-vla --save-temps ")
 
 
 add_executable(tcp_relay llnet/tcp_relay.cpp)
@@ -17,6 +17,7 @@ target_link_libraries(tcp_relay rt)
 add_subdirectory(llpool)
 
 add_subdirectory(threads)
+add_subdirectory(clocks)
 
 
 

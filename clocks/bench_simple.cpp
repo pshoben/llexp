@@ -2,25 +2,20 @@
 #include <mutex>
 #include <thread>
 #include <vector>
-//#include <cstdio>
 #include <unistd.h>
-//#include "queue_v2_spinlock.h"
 #include <stdint.h>
-//#include "common.h"
-//#include <algorithm>
-//#include "message_stats.h"
 #include <pthread.h>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
-//#include <algorithm>
 #include <atomic>
 #include <cstdlib>
 #include <x86intrin.h>
-
+#include "common.h"
 
 using std::vector;
 using std::mutex;
+
+double g_nanos_per_cycle=0.0;
 
 unsigned int g_num_threads=8;
 uint64_t g_max_reads=1000000000;
@@ -46,11 +41,9 @@ void * thread_func( __attribute__((unused)) void * args )
 #ifdef USE_RDTSC
     auto option = "rdtsc";
 #endif
- 
 #ifdef USE_RDTSCP
     auto option = "rdtscp";
 #endif
-
 
     take_mutex();
     if( g_verbose )
@@ -66,7 +59,6 @@ void * thread_func( __attribute__((unused)) void * args )
 #ifdef USE_RDTSC
     auto prev = __rdtsc();
 #endif
- 
 #ifdef USE_RDTSCP
     auto prev = __rdtscp( &aux );
 #endif
@@ -83,7 +75,6 @@ void * thread_func( __attribute__((unused)) void * args )
 #ifdef USE_RDTSC
         auto time = __rdtsc();
 #endif
- 
 #ifdef USE_RDTSCP
         auto time = __rdtscp( &aux );
 #endif
@@ -103,7 +94,7 @@ void * thread_func( __attribute__((unused)) void * args )
 //            if( g_verbose )
 //            {
 //                take_mutex();
-//                std::cout << "| option " << option << " | cpu " << sched_getcpu() << " | count " << num_reads << " | avg " << (sum_diff / num_reads) << " | mad " << (sum_mean_diff / num_reads) << "\n";
+//                std::cout << "| option " << option << " | cpu " << sched_getcpu() << " | count " << num_reads << " | avg (cyc) " << (sum_diff / num_reads) << " | mad (cyc) " << (sum_mean_diff / num_reads) << "\n";
 //                release_mutex();
 //            }
         } 
@@ -117,7 +108,10 @@ void * thread_func( __attribute__((unused)) void * args )
     if( g_verbose ) {
         std::cout << "Thread on CPU " << sched_getcpu() << " - read " << num_reads << " samples \n";
     }
-    std::cout << "| option " << option << " | cpu " << sched_getcpu() << " | count " << num_reads << " | avg " << (sum_diff / num_reads) << " | mad " << (sum_mean_diff / num_reads) << "\n";
+    double avg_cyc = (double) sum_diff / (double) num_reads; 
+    double mean_avg_diff = (double) sum_mean_diff / (double) num_reads; 
+    std::cout << "| option " << option << " | cpu " << sched_getcpu() << " | count " << num_reads << " | avg " << avg_cyc << " (cyc) = " << avg_cyc * g_nanos_per_cycle << " (ns) "  
+    <<  " | mad " << mean_avg_diff << " (cyc) = " << mean_avg_diff * g_nanos_per_cycle << " (ns)\n";
     release_mutex();
 
     g_num_threads_finished++;
@@ -126,6 +120,9 @@ void * thread_func( __attribute__((unused)) void * args )
 
 int main() //  int argc, char * const * argv ) 
 {
+
+  g_nanos_per_cycle = measure_nanos_per_cycle();
+
   pthread_attr_t attr;
   pthread_attr_init( &attr );
   cpu_set_t cpuset;

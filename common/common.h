@@ -2,6 +2,7 @@
 
 #include <time.h>
 #include <stdint.h>
+#include <x86intrin.h>
 
 #define USE_CLOCK_TYPE CLOCK_REALTIME
 
@@ -47,7 +48,39 @@ inline double calculate_throughput_mb(unsigned int msg_per_sec, size_t msg_size 
 {
   return (double)((double)msg_size * (double)msg_per_sec / 1048576.0);
 }
+
 inline unsigned int calculate_throughput_msgs( double mb_per_sec, size_t msg_size ) 
 {
    return (unsigned int) (double)(1048576.0 * mb_per_sec / (double) msg_size);
-} 
+}
+
+
+inline double measure_nanos_per_cycle( ) 
+{
+
+    struct timespec start_time;
+    clock_gettime( CLOCK_REALTIME, &start_time );
+
+    uint64_t start_cycles = __rdtsc();
+    uint64_t end_cycles;
+
+    std::cout << " measuring nanos/cycle\n";
+
+    int countdown = 1000000000;
+    while( countdown--> 0 )
+    {
+        end_cycles = __rdtsc();
+    }
+    uint64_t diff_cycles = end_cycles - start_cycles;
+
+    struct timespec end_time;
+    clock_gettime( CLOCK_REALTIME, &end_time );
+    long diff_nanos =  timespec_diff_ns( start_time,  end_time );
+
+    double nanos_per_cycle = (double) diff_nanos / (double) diff_cycles;
+
+    std::cout << " measured " << diff_cycles << " cycles in " << diff_nanos << " nanoseconds = " << nanos_per_cycle << " nanos/cycle\n";
+    return nanos_per_cycle; 
+}
+
+ 

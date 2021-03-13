@@ -20,7 +20,7 @@ double g_nanos_per_cycle=0.0;
 unsigned int g_num_threads=8;
 uint64_t g_max_reads=1000000000;
 
-bool g_verbose = true;
+bool g_verbose = false;
 
 pthread_t threads[ 8 ];
 
@@ -35,6 +35,13 @@ void take_mutex() {
 void release_mutex() {
   g_mutex.unlock();
 }
+
+void * thread_measure_nanos( __attribute__((unused)) void * args ) 
+{
+    g_nanos_per_cycle = measure_nanos_per_cycle();
+    return nullptr;
+}
+
 
 void * thread_func( __attribute__((unused)) void * args ) 
 {
@@ -121,11 +128,20 @@ void * thread_func( __attribute__((unused)) void * args )
 int main() //  int argc, char * const * argv ) 
 {
 
-  g_nanos_per_cycle = measure_nanos_per_cycle();
-
   pthread_attr_t attr;
   pthread_attr_init( &attr );
   cpu_set_t cpuset;
+
+  {
+      // run the clock measurement on core 1:
+      CPU_ZERO( &cpuset );
+      CPU_SET( 1, &cpuset );
+      pthread_attr_setaffinity_np( &attr, sizeof( cpu_set_t ), &cpuset );
+      pthread_t clock_thread;
+      pthread_create( &clock_thread, &attr, thread_measure_nanos, NULL );
+      pthread_join( clock_thread, 0 );
+  }
+
 
   for( unsigned int i = 0 ; i < g_num_threads ; i++ ) 
   {

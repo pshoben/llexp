@@ -64,9 +64,7 @@ inline double measure_nanos_per_cycle( )
     uint64_t start_cycles = __rdtsc();
     uint64_t end_cycles;
 
-    std::cout << " measuring nanos/cycle\n";
-
-    int countdown = 1000000000;
+    int countdown = 100000000;
     while( countdown--> 0 )
     {
         end_cycles = __rdtsc();
@@ -79,7 +77,6 @@ inline double measure_nanos_per_cycle( )
 
     double nanos_per_cycle = (double) diff_nanos / (double) diff_cycles;
 
-    std::cout << " measured " << diff_cycles << " cycles in " << diff_nanos << " nanoseconds = " << nanos_per_cycle << " nanos/cycle\n";
     return nanos_per_cycle; 
 }
 

@@ -1,12 +1,17 @@
 ﻿
-#set (TARGET1_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 -Wno-vla --save-temps -DUSE_RDTSC ")
-add_executable ( bench_simple_rdtsc bench_rdtsc.cpp )
+add_executable ( bench_simple_rdtsc bench_simple.cpp )
+target_compile_options( bench_simple_rdtsc PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a -DUSE_RDTSC)
 target_link_libraries( bench_simple_rdtsc PRIVATE pthread )
-#set_target_properties( bench_simple_rdtsc PROPERTIES COMPILE_FLAGS ${TARGET1_CXX_FLAGS} )
 
-
-#set (TARGET2_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 -Wno-vla --save-temps -DUSE_RDTSCP ")
-add_executable ( bench_simple_rdtscp bench_rdtscp.cpp )
+add_executable ( bench_simple_rdtscp bench_simple.cpp )
+target_compile_options( bench_simple_rdtscp PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a -DUSE_RDTSCP)
 target_link_libraries( bench_simple_rdtscp PRIVATE pthread )
-#set_target_properties( bench_simple_rdtscp PROPERTIES COMPILE_FLAGS ${TARGET2_CXX_FLAGS})
+
+add_executable ( bench_pingpong_rdtsc bench_pingpong_simple.cpp )
+target_compile_options( bench_pingpong_rdtsc PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a -DUSE_RDTSC)
+target_link_libraries( bench_pingpong_rdtsc PRIVATE pthread )
+
+add_executable ( bench_pingpong_rdtscp bench_pingpong_simple.cpp )
+target_compile_options( bench_pingpong_rdtscp PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a -DUSE_RDTSCP)
+target_link_libraries( bench_pingpong_rdtscp PRIVATE pthread )
 

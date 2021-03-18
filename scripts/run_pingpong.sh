@@ -6,8 +6,10 @@ export BENCHMARK_BINARY=bench_pingpong_rdtsc
 #export BENCHMARK_BINARY=bench_pingpong_rdtscp
 
 function run_with_threads {
+
+#    nice -n -20 ../build/clocks/bench_pingpong_rdtscp -s 13  # ( block size = 64 ) --> no false sharing , no load splitting
    
-    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY} -v -s $1
+    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY} -s $1
 }
 
 COL_HEADER="cpu ------ | step ----- | blocksize -| count ---- | avg (cyc) -| avg (ns) - | mad (cyc)- | mad (ns)- |"

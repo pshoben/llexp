@@ -2,22 +2,19 @@
 #set -v
 
 export EXE_DIR=../build/clocks/
-export BENCHMARK_BINARY1=bench_pingpong_rdtsc
-export BENCHMARK_BINARY2=bench_pingpong_rdtscp
+export BENCHMARK_BINARY=bench_pingpong_atomic
 
 function run_with_threads {
    
-    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY1} -s $1
-    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY2} -s $1
+    nice -n -20 ${EXE_DIR}/${BENCHMARK_BINARY} -s $1
 
 }
 
 COL_HEADER="|option ---|cpu|step ------ | blocksize -| count ---- | avg (cyc) -| avg (ns) - | mad (cyc)- | mad (ns) - | min (cyc)- | min (ns) - | max (cyc)- | max (ns) - |"
  SEPARATOR="|----------|---|------------|------------|------------|------------|------------|------------|------------|------------|------------|------------|------------|"
-#            |          1 |          1 |         16 |  259039223 |      188.5 |       78.7 |      128.2 |       53.5 
 
 echo ""
-echo "# Running PingPong Benchmark (${BENCHMARK_BINARY1} ${BENCHMARK_BINARY2})"
+echo "# Running PingPong Benchmark (${BENCHMARK_BINARY})"
 echo ""
 
 echo "All test runs performed on [Target Hardware](target_architecture.md)"

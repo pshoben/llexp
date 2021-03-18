@@ -12,13 +12,13 @@ INCLUDE_DIRECTORIES( common )
 set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 -Wno-vla ") # --save-temps ")
 
 
-add_executable(tcp_relay llnet/tcp_relay.cpp)
+#add_executable(tcp_relay llnet/tcp_relay.cpp)
 #target_link_libraries(tcp_relay rt asan)
-target_link_libraries(tcp_relay rt)
+#target_link_libraries(tcp_relay rt)
 
-add_subdirectory(llpool)
+#add_subdirectory(llpool)
 
-add_subdirectory(threads)
+#add_subdirectory(threads)
 add_subdirectory(clocks)
 
 

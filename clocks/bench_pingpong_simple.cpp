@@ -114,12 +114,14 @@ void * thread_func( __attribute__((unused)) void * args )
     msg_t current_input_msg;
 //    current_input_msg.time = prev_output_msg.time;
 
+    auto time_now = __rdtscp(&aux);
+
     while( g_running && num_reads < g_max_reads ) 
     {
         // read shared location:
-        current_input_msg.counter = input_msg->counter;
-        current_input_msg.time = input_msg->time;
-
+        //current_input_msg.counter = input_msg->counter;
+        //current_input_msg.time = input_msg->time;
+        current_input_msg = *input_msg;
         if( current_input_msg.counter != prev_input_msg.counter ) {
             if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
                 // some msgs have been dropped
@@ -127,10 +129,10 @@ void * thread_func( __attribute__((unused)) void * args )
             } 
             num_reads++;
 #ifdef USE_RDTSC
-            auto time_now = __rdtsc();
+            time_now = __rdtsc();
 #endif
 #ifdef USE_RDTSCP
-            auto time_now = __rdtscp(&aux); 
+            time_now = __rdtscp(&aux); 
 #endif
             int64_t diff = time_now - current_input_msg.time;
 

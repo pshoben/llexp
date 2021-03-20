@@ -45,7 +45,6 @@ std::size_t g_start_block_size = sizeof( msg_t );
 std::size_t g_block_step = 0;
 std::size_t g_block_size = 0; //  = g_start_block_size + (g_block_step * 4); // 64; // cache line size
 char * g_thread_input_blocks; // array of block size, one per thread
-int g_slot_size_pow2 = 0; // 2^6 = 64 ns slots
 
 std::mutex g_mutex;
 
@@ -67,7 +66,7 @@ void * thread_measure_nanos( __attribute__((unused)) void * args )
 
 void * thread_func( __attribute__((unused)) void * args ) 
 {
-    auto option = "wait";
+    auto option = "rdtscp";
     unsigned int aux;
 
 
@@ -80,7 +79,7 @@ void * thread_func( __attribute__((unused)) void * args )
      
     //auto prev = __rdtsc();
 
-    uint64_t num_reads = 1;
+    uint64_t num_reads = 0;
     uint64_t dropped = 0;
     int64_t sum_diff = 0; 
     int64_t sum_mean_diff = 0; 
@@ -88,24 +87,17 @@ void * thread_func( __attribute__((unused)) void * args )
     int64_t max_diff = 0 ;
     int64_t running_avg = 0;
     int avg_countdown = 30000000;
-
-    bool is_starter_thread = (thread_args.this_thread_num == 1);
+    int num_outliers = 0;
 
     take_mutex();
     if( g_verbose )
     {
         pid_t tid = syscall( __NR_gettid );
-        std::cout << " thread num " << thread_args.this_thread_num << " is starter thread? " << ((is_starter_thread)?"true":"false") << "\n";
-
-
         std::cout << option << " Thread ID " << tid << " on CPU " << sched_getcpu() << " - num " << thread_args.this_thread_num << " writing to " << thread_args.write_to_thread_num << "\n";
         printf("%s Thread ID %u on CPU %u input msg %p output msg %p separated by %ld bytes\n", option, tid, sched_getcpu(), (void*)input_msg, (void*)output_msg, (int64_t)output_msg-(int64_t)input_msg);
     }
     prev_output_msg.time = __rdtscp(&aux); 
     prev_output_msg.counter=0;
-    uint64_t time_now = prev_output_msg.time;
-    uint64_t prev_slot_num = time_now >> g_slot_size_pow2;
-
     *output_msg = prev_output_msg;
 
     release_mutex();
@@ -113,29 +105,20 @@ void * thread_func( __attribute__((unused)) void * args )
     msg_t current_input_msg;
 //    current_input_msg.time = prev_output_msg.time;
 
+    auto time_now = __rdtscp(&aux);
+
     while( g_running && num_reads < g_max_reads ) 
     {
-        // thread reads on a schedule:
-        time_now = __rdtscp(&aux); 
-        uint64_t slot_num = time_now >> g_slot_size_pow2;
-        bool got_a_slot = slot_num & 1;
-
-        if(( got_a_slot == is_starter_thread ) && (slot_num > prev_slot_num )) // 2 threads take alternate slots 
-        {
-            // next quantum
-            prev_slot_num = slot_num;
-
         // read shared location:
-        current_input_msg.counter = input_msg->counter;
-        current_input_msg.time = input_msg->time;
-
+        //current_input_msg.counter = input_msg->counter;
+        //current_input_msg.time = input_msg->time;
+        current_input_msg = *input_msg;
         if( current_input_msg.counter != prev_input_msg.counter ) {
             if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
                 // some msgs have been dropped
                 dropped += ((prev_input_msg.counter - current_input_msg.counter) - 1);
             } 
-            num_reads++;
-            //time_now = __rdtscp(&aux); 
+            time_now = __rdtscp(&aux); 
             int64_t diff = time_now - current_input_msg.time;
 
             if( g_verbose )
@@ -145,16 +128,24 @@ void * thread_func( __attribute__((unused)) void * args )
                 release_mutex();
             }
 
+            // exclude the 1st x 10 million reads from stats
+            if( avg_countdown < (30000000-10000000)) {
 
-            if( diff < min_diff ) {
-                 min_diff = diff;
-            }   
-            if( diff > max_diff ) {
-                 max_diff = diff;
-            }    
-            sum_diff += diff;
-            if( running_avg > 0) {
-                sum_mean_diff += llabs(diff - running_avg);
+                num_reads++;
+
+                if( diff > 1000 ) {
+                    num_outliers++;
+                }
+                if( diff < min_diff ) {
+                     min_diff = diff;
+                }   
+                if( diff > max_diff ) {
+                     max_diff = diff;
+                }    
+                sum_diff += diff;
+                if( running_avg > 0) {
+                    sum_mean_diff += llabs(diff - running_avg);
+                }
             }
             prev_input_msg = current_input_msg;
         }
@@ -175,7 +166,7 @@ void * thread_func( __attribute__((unused)) void * args )
         } 
 //        prev = time;
         // regardless of read status, write every loop :
-       prev_output_msg.time = __rdtscp(&aux); 
+        prev_output_msg.time = __rdtscp(&aux); 
         prev_output_msg.counter++;
         // write other shared location:
 //            if( g_verbose )
@@ -189,7 +180,6 @@ void * thread_func( __attribute__((unused)) void * args )
         *output_msg = prev_output_msg;
         //output_msg->time = prev_output_msg.time;
         //output_msg->counter = prev_output_msg.counter;
-        }
     }
 
     take_mutex();
@@ -211,6 +201,8 @@ void * thread_func( __attribute__((unused)) void * args )
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_step;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_size;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << num_reads;
+    std::cout << " | " << std::setw(10) << std::setfill(' ') << num_outliers;
+
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << dropped;
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << std::setprecision(2) << drop_pct;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << avg_cyc;
@@ -235,7 +227,7 @@ void * thread_func( __attribute__((unused)) void * args )
 int main(int argc, char * const * argv) 
 {
   char c;
-  while ((c = getopt (argc, argv, "avw:s:")) != -1) {
+  while ((c = getopt (argc, argv, "avs:")) != -1) {
     switch (c)
     {
       case 'a':
@@ -244,11 +236,6 @@ int main(int argc, char * const * argv)
       case 'v':
         g_verbose = true;
         break;
-      case 'w':
-      {
-        g_slot_size_pow2 = atoi(optarg);
-        break;
-      } 
       case 's':
       {
         g_block_step = atoi(optarg);

@@ -86,6 +86,7 @@ void * thread_func( __attribute__((unused)) void * args )
     int64_t max_diff = 0 ;
     int64_t running_avg = 0;
     int avg_countdown = 30000000;
+    int num_outliers = 0;
 
     take_mutex();
     if( g_verbose )
@@ -103,22 +104,39 @@ void * thread_func( __attribute__((unused)) void * args )
     msg_t current_input_msg;
 //    current_input_msg.time = prev_output_msg.time;
 
+    // split the threads so that they start N clock ticks apart
+    auto time_now = __rdtscp(&aux); 
+    bool is_starter_thread = (thread_args.this_thread_num == 1);
+    if( !is_starter_thread ) {
+       // delay for N x 15 ns
+       for(int i = 0 ; i < 2 ; i++ ) {
+           time_now = __rdtscp(&aux); 
+       }
+//       //time_now = __rdtscp(&aux); 
+//       //time_now = __rdtscp(&aux); 
+//       //time_now = __rdtscp(&aux); 
+    }
+
     while( g_running && num_reads < g_max_reads ) 
     {
-        // read shared location:
-        current_input_msg.counter = input_msg->counter;
-        current_input_msg.time = input_msg->time;
+        // delay by 10ns
+        //time_now = __rdtscp(&aux); 
 
-        // prefetch the next read while doing the post-read work:
-        __builtin_prefetch( input_msg, 0/*for read*/, 0  /* no temporal locality*/ );
+        // read shared location:
+        //current_input_msg.counter = input_msg->counter;
+        //current_input_msg.time = input_msg->time;
+        current_input_msg = *input_msg;
+
+        // prefetch the next write while doing the pre-write work:
+        //__builtin_prefetch( output_msg, 1/*for write*/,  0 /* no temporal locality*/ );
+
 
         if( current_input_msg.counter != prev_input_msg.counter ) {
             if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
                 // some msgs have been dropped
                 dropped += ((prev_input_msg.counter - current_input_msg.counter) - 1);
             } 
-            num_reads++;
-            auto time_now = __rdtscp(&aux); 
+            time_now = __rdtscp(&aux); 
             int64_t diff = time_now - current_input_msg.time;
 
             if( g_verbose )
@@ -128,16 +146,24 @@ void * thread_func( __attribute__((unused)) void * args )
                 release_mutex();
             }
 
+            // exclude the 1st million reads from stats
+            if( avg_countdown < (30000000-1000000)) {
 
-            if( diff < min_diff ) {
-                 min_diff = diff;
-            }   
-            if( diff > max_diff ) {
-                 max_diff = diff;
-            }    
-            sum_diff += diff;
-            if( running_avg > 0) {
-                sum_mean_diff += llabs(diff - running_avg);
+                num_reads++;
+
+                if( diff > 1000 ) {
+                    num_outliers++;
+                }
+                if( diff < min_diff ) {
+                     min_diff = diff;
+                }   
+                if( diff > max_diff ) {
+                     max_diff = diff;
+                }    
+                sum_diff += diff;
+                if( running_avg > 0) {
+                    sum_mean_diff += llabs(diff - running_avg);
+                }
             }
             prev_input_msg = current_input_msg;
         }
@@ -158,7 +184,7 @@ void * thread_func( __attribute__((unused)) void * args )
         } 
 //        prev = time;
         // regardless of read status, write every loop :
-     prev_output_msg.time = __rdtscp(&aux); 
+        prev_output_msg.time = __rdtscp(&aux); 
         prev_output_msg.counter++;
         // write other shared location:
 //            if( g_verbose )
@@ -170,10 +196,8 @@ void * thread_func( __attribute__((unused)) void * args )
 
 
         *output_msg = prev_output_msg;
-
-        // prefetch the next write while doing the pre-write work:
-        __builtin_prefetch( output_msg, 1/*for write*/,  0 /* no temporal locality*/ );
-
+        // prefetch the next read while doing the post-read work:
+        //__builtin_prefetch( input_msg, 0/*for read*/, 0  /* no temporal locality*/ );
 
         //_cldemote( (void *)output_msg);
         //output_msg->time = prev_output_msg.time;
@@ -199,6 +223,8 @@ void * thread_func( __attribute__((unused)) void * args )
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_step;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_size;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << num_reads;
+    std::cout << " | " << std::setw(10) << std::setfill(' ') << num_outliers;
+
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << dropped;
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << std::setprecision(2) << drop_pct;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << avg_cyc;

@@ -165,6 +165,8 @@ public:
    unsigned int msg_per_sec;
    unsigned int num_thread_pairs;
    std::vector< TimespecPair *> batches;
+   std::vector< TimespecPair64 *> batches64;
+
    std::mutex mutex;
    std::vector<unsigned int>all_latencies;
 
@@ -189,15 +191,20 @@ public:
       for( auto owned : batches ) {
           delete[] (owned);
       }
+      for( auto owned : batches64 ) {
+          delete[] (owned);
+      }
+ 
       delete histogram_in;
       delete histogram_out;
    }
 
-   void process_batch( TimespecPair * batch, __attribute__((unused))bool first_batch ) 
+   template<typename T>
+   void process_batch( T * batch, __attribute__((unused))bool first_batch ) 
    {
       unsigned int count=0;
-      TimespecPair * p_batch_entry = batch;
-      TimespecPair * p_prev_entry = nullptr ;
+      T * p_batch_entry = batch;
+      T * p_prev_entry = nullptr ;
 
 //std::cout << "adding batch - max_writes = " <<  max_writes << "\n"; // TODO REMOVE
 
@@ -255,9 +262,16 @@ public:
    void print_stats() 
    {
        bool first_batch = true;
-       for( auto batch : batches ) {
-           process_batch( batch, first_batch );
-           first_batch = false;
+       if( batches64.size() > 0 ) {
+           for( auto batch : batches64 ) {
+               process_batch<TimespecPair64>( batch, first_batch );
+               first_batch = false;
+           }
+       } else { 
+           for( auto batch : batches ) {
+               process_batch<TimespecPair>( batch, first_batch );
+               first_batch = false;
+           }
        }
 
        histogram_in->scale_row();
@@ -339,6 +353,12 @@ public:
        histogram_out->scale_row();
        std::cout << " | " << std::setw(32) << std::left << std::setfill(' ') << histogram_out->print_row() << "\n"; 
    }
+
+   void add_batch( TimespecPair64 * batch ) 
+   {
+       batches64.push_back(batch);
+   }
+
 
    void add_batch( TimespecPair * batch ) 
    {

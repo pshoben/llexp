@@ -9,8 +9,7 @@ INCLUDE_DIRECTORIES( common )
 #set (CMAKE_CXX_STANDARD 2a)
 
 #set (CMAKE_CXX_FLAGS " -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O2 -Wno-unused -fsanitize=address ")
-set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O0 --save-temps -Wno-vla ") # --save-temps ")
-
+set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit-frame-pointer -O3 --save-temps -Wno-vla ") # --save-temps ")
 
 #add_executable(tcp_relay llnet/tcp_relay.cpp)
 #target_link_libraries(tcp_relay rt asan)
@@ -19,8 +18,10 @@ set (CMAKE_CXX_FLAGS " -g -std=c++2a -Wall -Wextra -Wpedantic -Wshadow -fno-omit
 #add_subdirectory(llpool)
 
 #add_subdirectory(threads)
-add_subdirectory(clocks)
-add_subdirectory(queue)
+#add_subdirectory(clocks)
+#add_subdirectory(queue)
+#add_subdirectory(stream)
+add_subdirectory(prot)
 
 
 

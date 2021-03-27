@@ -27,3 +27,8 @@ add_executable ( bench_pingpong_asm bench_pingpong_asm.cpp )
 target_compile_options( bench_pingpong_asm PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps -DUSE_RDTSCP ) # -march=cascadelake ) # -mcldemote )
 target_link_libraries( bench_pingpong_asm PRIVATE pthread )
 
+add_executable ( bench_pingpong_rdtscp_stream bench_pingpong_rdtscp_stream.cpp )
+target_compile_options( bench_pingpong_rdtscp_stream PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps -DUSE_RDTSCP)
+target_link_libraries( bench_pingpong_rdtscp_stream PRIVATE pthread )
+
+

@@ -6,21 +6,67 @@
 #include <boost/interprocess/allocators/allocator.hpp>
 #include <functional>
 #include <utility>
+#include <variant>
+
+namespace bi = boost::interprocess;
+
+namespace llexp {
+
+template<class T> 
+using alloc = bi::adaptive_pool<T, bi::managed_shared_memory::segment_manager>;
+
+template<typename T, int Size=64>
+using block_t = std::array<T,Size>;
+
+template<typename T>
+using col_t = std::vector< block_t<T>, std::scoped_allocator_adaptor< alloc< block_t< T >>>>;
+
+//template<typename T>
+//using cols_t = std::vector< col_t<T>, std::scoped_allocator_adaptor< alloc< col_t< T >>>>;
+
+using int8_col_t = col_t<int8_t>;
+using int16_col_t = col_t<int16_t>;
+using int32_col_t = col_t<int32_t>;
+using int64_col_t = col_t<int64_t>;
+using float_col_t = col_t<float_t>;
+using double_col_t = col_t<double_t>;
+using time_col_t = col_t<time_t>;
+
+// need a shm aware stl container to store each specialised column type
+using int8_cols_t = std::vector< int8_col_t, std::scoped_allocator_adaptor< alloc< int8_col_t >>>;
+using int16_cols_t = std::vector< int16_col_t, std::scoped_allocator_adaptor< alloc< int16_col_t >>>;
+using int32_cols_t = std::vector< int32_col_t, std::scoped_allocator_adaptor< alloc< int32_col_t >>>;
+using int64_cols_t = std::vector< int64_col_t, std::scoped_allocator_adaptor< alloc< int64_col_t >>>;
+using float_cols_t = std::vector< float_col_t, std::scoped_allocator_adaptor< alloc< float_col_t >>>;
+using double_cols_t = std::vector< double_col_t, std::scoped_allocator_adaptor< alloc< double_col_t >>>;
+using time_cols_t = std::vector< time_col_t, std::scoped_allocator_adaptor< alloc< time_col_t >>>;
+
+//using variant_col_t = std::variant<int8_col_t, int16_col_t >;
+//using variant_col_vec_t = std::vector< variant_col_t, std::scoped_allocator_adaptor< alloc< variant_col_t >>>;
+//
+//using variant_cols_t = std::variant<int8_cols_t, int16_cols_t >;
+//using variant_cols_vec_t = std::vector< variant_cols_t, std::scoped_allocator_adaptor< alloc< variant_cols_t >>>;
 
 
-using i32b_t = int32_t[64]; // a block is fixed alloc size, and populated as far as top_index
-using i32_shcol_t = std::vector<i32b_t, ShmAlloc> // a column is a vector (i.e. growable) of blocks
 
-typedef struct my_table_t // table with 2x int32 columns
+typedef struct hazard_t
 {
-  // TODO force alignment
-  int32_t top_block; // this is a hazard index : only owning thread/process may increment
-  int32_t top_index; // this is a hazard index : only owning thread/process may increment
+  int32_t top_block; // the index of the block currently being written to
+  int32_t top_index; // the last written index of the top block
+} hazard_t;
 
-  i32_shcol_t col1;
-  i32_shcol_t col2;
+
+typedef struct my_table_t
+{
+    hazard_t top; // written atomically
+
+    int32_t time;      // index in time vector
+    int32_t latency_i32; // index in latency int32 cols vector
+
 } my_table_t;
-using ShmTableAlloc = allocator<my_table_t, managed_shared_memory::segment_manager>;
-using TableVecT = std::vector< my_table_t, ShmTableAlloc >;
+// can't construct my_table_t directly using shared_memory_manager : must wrap it in a shm-friendly container:
+using my_tables_t = std::vector< my_table_t, std::scoped_allocator_adaptor< alloc< my_table_t >>>;
+
+}
 
 #endif

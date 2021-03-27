@@ -4,19 +4,22 @@
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/interprocess/allocators/adaptive_pool.hpp>
 
+#include "lldb.h"
+
 using std::cout;
 
-namespace bi = boost::interprocess;
-template<class T> using alloc = bi::adaptive_pool<T,
-                                    bi::managed_shared_memory::segment_manager>;
+namespace llexp {
 
-using int32_arr_t = std::array<int32_t,64>;
+typedef struct table_t
+{
+    hazard_t top; // written atomically
+    int32_t time; // index of the time column in the time_cols vector
+    int32_t price_i32; // index of the time column in the int32_cols vector
+    int32_t qty_i64; // index of the qty column in the int64_cols vector
 
-//using ipc_row = std::vector<int, alloc<int>>;
-
-using int32_col_t = std::vector< int32_arr_t, std::scoped_allocator_adaptor< alloc< int32_arr_t >>>;
-
-using int32_cols_t = std::vector< int32_col_t, std::scoped_allocator_adaptor< alloc< int32_col_t >>>;
+} table_t;
+// can't construct my_table_t directly using shared_memory_manager : must wrap it in a shm-friendly container:
+using tables_t = std::vector< table_t, std::scoped_allocator_adaptor< alloc< table_t >>>;
 
 void print( const int32_col_t col ) 
 {
@@ -50,15 +53,35 @@ void populate_col( int32_col_t & col, int32_t x )
    col[1][1]=x;
 }
 
-int main ()
+void run_test ()
 {
    bi::managed_shared_memory manager( bi::create_only, "Demo", 65536 );
  
-   // create the columns
-   int32_cols_t cols( manager.get_segment_manager());
+   // create the column specializations:
+   int8_cols_t i8cols( manager.get_segment_manager());
+   int16_cols_t i16cols( manager.get_segment_manager());
+   int32_cols_t i32cols( manager.get_segment_manager());
+   int64_cols_t i64cols( manager.get_segment_manager());
+
+   float_cols_t  f32cols( manager.get_segment_manager());
+   double_cols_t d64cols( manager.get_segment_manager());
+   time_cols_t   t64cols( manager.get_segment_manager());
+
+   my_tables_t   tabs( manager.get_segment_manager());
+
+   tables_t tables( manager.get_segment_manager());
+   table_t empty;
+   tables.push_back(empty);
+
+//   table_groups_t table_groups( manager.get_segment_manager());
+
+   //my_tables_t tabs( manager.get_segment_manager());
+
+   //my_table_t empty;
+   //auto & tab = tabs.push_back( empty );
 
    for( int32_t i = 0 ; i < 5 ; ++i ) {
-       int32_col_t & v = cols.emplace_back(2);
+       int32_col_t & v = i32cols.emplace_back(2);
 
    //int32_col_t v( manager.get_segment_manager());
    //cols.push_back( v );
@@ -91,8 +114,14 @@ int main ()
 
 
    //print( v );
-   print( cols );
+   print( i32cols );
 
    bi::shared_memory_object::remove("Demo");
+}
+
+}
+
+int main() {
+  llexp::run_test();
 }
 

@@ -13,6 +13,7 @@ namespace llexp {
 typedef struct table_t
 {
     hazard_t top; // written atomically
+    //variant_col_vec_t columns;
     int32_t time; // index of the time column in the time_cols vector
     int32_t price_i32; // index of the time column in the int32_cols vector
     int32_t qty_i64; // index of the qty column in the int64_cols vector
@@ -21,11 +22,11 @@ typedef struct table_t
 // can't construct my_table_t directly using shared_memory_manager : must wrap it in a shm-friendly container:
 using tables_t = std::vector< table_t, std::scoped_allocator_adaptor< alloc< table_t >>>;
 
-void print( const int32_col_t col ) 
+template< typename T >
+void print_col( const T col ) 
 {
   cout << "capacity : " << col.capacity() << "\n"; 
   cout << "size : " << col.size() << "\n"; 
-
   for( auto block : col ) {
     cout << "block : "; 
     for( auto val : block ) {
@@ -36,20 +37,19 @@ void print( const int32_col_t col )
   cout << "\n";
 }
 
-void print( const int32_cols_t cols ) 
+template< typename T >
+void print( const T cols ) 
 {
   for( auto col : cols ) {
-    print( col );
+    print_col( col );
   }
 }
 
-void populate_col( int32_col_t & col, int32_t x ) 
+template< typename T, typename U >
+void populate_col( T & col, U x ) 
 {
    col.resize(2);
-   col[0][0]=0;
    col[0][1]= x;
-
-   col[1][0]=0;
    col[1][1]=x;
 }
 
@@ -58,14 +58,24 @@ void run_test ()
    bi::managed_shared_memory manager( bi::create_only, "Demo", 65536 );
  
    // create the column specializations:
+
+//   variant_col_vec_t cols( manager.get_segment_manager());
+//   variant_col_map_t col_map( manager.get_segment_manager());
+
+//   int8_col_t int8_col(1);
+   //col_map["table.sym"] = int8_col;
+
    int8_cols_t i8cols( manager.get_segment_manager());
    int16_cols_t i16cols( manager.get_segment_manager());
    int32_cols_t i32cols( manager.get_segment_manager());
    int64_cols_t i64cols( manager.get_segment_manager());
-
    float_cols_t  f32cols( manager.get_segment_manager());
    double_cols_t d64cols( manager.get_segment_manager());
    time_cols_t   t64cols( manager.get_segment_manager());
+
+
+   map_string_int32_t colname_to_coltypes( manager.get_segment_manager());
+   map_string_stringvec_t tablename_to_colnames( manager.get_segment_manager());
 
    my_tables_t   tabs( manager.get_segment_manager());
 
@@ -79,16 +89,20 @@ void run_test ()
 
    //my_table_t empty;
    //auto & tab = tabs.push_back( empty );
-
-   for( int32_t i = 0 ; i < 5 ; ++i ) {
+   for( int8_t i = 0 ; i < 2 ; ++i ) {
+       int8_col_t & v = i8cols.emplace_back(2);
+       populate_col( v , i );
+   }
+   for( int16_t i = 0 ; i < 2 ; ++i ) {
+       int16_col_t & v = i16cols.emplace_back(2);
+       populate_col( v , i );
+   }
+   for( int32_t i = 0 ; i < 2 ; ++i ) {
        int32_col_t & v = i32cols.emplace_back(2);
-
-   //int32_col_t v( manager.get_segment_manager());
-   //cols.push_back( v );
- 
-   // for all these additions, the inner vectors obtain their allocator arguments
-   // from the outer vector's scoped_allocator_adaptor
-
+       populate_col( v , i );
+   }
+   for( int64_t i = 0 ; i < 2 ; ++i ) {
+       int64_col_t & v = i64cols.emplace_back(2);
        populate_col( v , i );
    }
  
@@ -114,7 +128,10 @@ void run_test ()
 
 
    //print( v );
+   print( i8cols );
+   print( i16cols );
    print( i32cols );
+   print( i64cols );
 
    bi::shared_memory_object::remove("Demo");
 }

@@ -32,6 +32,11 @@ using float_col_t = col_t<float_t>;
 using double_col_t = col_t<double_t>;
 using time_col_t = col_t<time_t>;
 
+using stringvec_t = std::vector< std::string, std::scoped_allocator_adaptor< alloc< std::string >>>;
+
+using map_string_int32_t = std::map< std::string, int32_t, std::scoped_allocator_adaptor< alloc< int32_t >>>;
+using map_string_stringvec_t = std::map< std::string, stringvec_t, std::scoped_allocator_adaptor< alloc< stringvec_t >>>;
+
 // need a shm aware stl container to store each specialised column type
 using int8_cols_t = std::vector< int8_col_t, std::scoped_allocator_adaptor< alloc< int8_col_t >>>;
 using int16_cols_t = std::vector< int16_col_t, std::scoped_allocator_adaptor< alloc< int16_col_t >>>;
@@ -39,10 +44,13 @@ using int32_cols_t = std::vector< int32_col_t, std::scoped_allocator_adaptor< al
 using int64_cols_t = std::vector< int64_col_t, std::scoped_allocator_adaptor< alloc< int64_col_t >>>;
 using float_cols_t = std::vector< float_col_t, std::scoped_allocator_adaptor< alloc< float_col_t >>>;
 using double_cols_t = std::vector< double_col_t, std::scoped_allocator_adaptor< alloc< double_col_t >>>;
-using time_cols_t = std::vector< time_col_t, std::scoped_allocator_adaptor< alloc< time_col_t >>>;
+using time_cols_t = std::map< std::string, time_col_t, std::scoped_allocator_adaptor< alloc< time_col_t >>>;
 
-//using variant_col_t = std::variant<int8_col_t, int16_col_t >;
+
+//using variant_col_t = std::variant< int8_col_t, int16_col_t >;
 //using variant_col_vec_t = std::vector< variant_col_t, std::scoped_allocator_adaptor< alloc< variant_col_t >>>;
+//using variant_col_map_t = std::map< std::string, variant_col_t, std::scoped_allocator_adaptor< alloc< variant_col_t >>>;
+
 //
 //using variant_cols_t = std::variant<int8_cols_t, int16_cols_t >;
 //using variant_cols_vec_t = std::vector< variant_cols_t, std::scoped_allocator_adaptor< alloc< variant_cols_t >>>;

@@ -28,6 +28,7 @@ using int8_col_t = col_t<int8_t>;
 using int16_col_t = col_t<int16_t>;
 using int32_col_t = col_t<int32_t>;
 using int64_col_t = col_t<int64_t>;
+
 using float_col_t = col_t<float_t>;
 using double_col_t = col_t<double_t>;
 using time_col_t = col_t<time_t>;

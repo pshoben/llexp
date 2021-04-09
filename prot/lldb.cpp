@@ -73,7 +73,6 @@ void run_test ()
    double_cols_t d64cols( manager.get_segment_manager());
    time_cols_t   t64cols( manager.get_segment_manager());
 
-
    map_string_int32_t colname_to_coltypes( manager.get_segment_manager());
    map_string_stringvec_t tablename_to_colnames( manager.get_segment_manager());
 

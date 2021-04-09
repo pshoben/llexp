@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
 	pid = getpid();
 	sprintf(data, DATA, pid);
 
-	// get shared memory file descriptor (NOT a file)
-	fd = shm_open(STORAGE_ID, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	// get shared memory file descriptor (NOT a file) - must already exist
+	fd = shm_open(STORAGE_ID, O_RDWR, S_IRUSR | S_IWUSR);
 	if (fd == -1)
 	{
 		perror("open");
@@ -45,12 +45,12 @@ int main(int argc, char *argv[])
 		return 30;
 	}
 
-//	// place data into memory
-//	len = strlen(data) + 1;
-//	memcpy(addr, data, len);
-//
-//	// wait for someone to read it
-//	sleep(2);
+	// place data into memory
+	len = strlen(data) + 1;
+	memcpy(addr, data, len);
+
+	// wait for someone to read it
+	sleep(2);
 
 	// mmap cleanup
 	res = munmap(addr, STORAGE_SIZE);
@@ -60,14 +60,13 @@ int main(int argc, char *argv[])
 		return 40;
 	}
 
-	// shm_open cleanup
-	fd = shm_unlink(STORAGE_ID);
-	if (fd == -1)
-	{
-		perror("unlink");
-		return 100;
-	}
+//	// shm_open cleanup
+//	fd = shm_unlink(STORAGE_ID);
+//	if (fd == -1)
+//	{
+//		perror("unlink");
+//		return 100;
+//	}
 
 	return 0;
 }
-

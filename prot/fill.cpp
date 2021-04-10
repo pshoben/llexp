@@ -55,12 +55,13 @@ int main(int argc, char *argv[])
   uint32_t alloc_size = header->alloc_size;
   uint32_t next_free_offset = header->next_free_offset;
   while( next_free_offset < alloc_size ) {
+      printf("writing byte at %p offset %lu\n",pfill, pfill - ((char*)addr)); 
       *pfill++ = 'x'; // write a byte
       // increment the next free offset
       next_free_offset++;
       // push the value to shared memory with write barrier. assumes this thread is the only writer.
+      // release semantics : readers that load/acquire next_free_offset are guaranteed to see all earlier writes from here
       __atomic_store_n( &( header->next_free_offset ), next_free_offset, __ATOMIC_RELEASE );
-
 
       header->print(); 
       // wait for a bit

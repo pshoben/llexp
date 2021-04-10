@@ -9,6 +9,8 @@
 #define NUM_BLOCKS     500 // 512*1000
 #define SEGMENT_SIZE   NUM_BLOCKS * BLOCK_SIZE
 
+#define MAX_BLOCKS_PER_COLUMN 500 
+
 using std::cout;
 
 class SegHeader {
@@ -35,13 +37,25 @@ public:
               << "capacity = " << alloc_size << "\n"
               << "size = " << size << "\n";
 
-        char * p = ((char *)start_addr)+start_offset;
-        char * end = ((char *)start_addr)+next_free_offset;
+        size_t offset = start_offset;
+        //char * p = ((char *)start_addr)+start_offset;
+        //char * end = ((char *)start_addr)+next_free_offset;
         do {
-           cout << *p; 
-        } while ( p++ < end );
+           char * p = ((char *)start_addr)+offset;
+           cout << *p;
+           //cout << offset << " : [" << *p << "]\n"; 
+        } while ( offset++ < (next_free_offset-1) );
         cout << "\n";
     }
 } ;
+
+class Column {
+public:
+    uint32_t top_block_offset; // offset of the top block from start of segmentthe most recently written block (index into start_of_block_offset array)
+    uint32_t top_index; // the most recently written index in the top blocka
+    uint32_t num_blocks; // used size of the start_of_block_offset array
+    uint32_t start_of_block_offset[MAX_BLOCKS_PER_COLUMN];
+
+ };
 
 #endif

@@ -48,13 +48,18 @@ add_executable ( set set.cpp )
 target_compile_options( set PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( set PRIVATE pthread ${Boost_LIBRARIES} rt)
 
+add_executable ( get get.cpp )
+target_compile_options( get PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+target_link_libraries( get PRIVATE pthread ${Boost_LIBRARIES} rt)
+
 add_executable ( fill fill.cpp )
 target_compile_options( fill PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( fill PRIVATE pthread ${Boost_LIBRARIES} rt)
 
+add_executable ( consume consume.cpp )
+target_compile_options( consume PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+target_link_libraries( consume PRIVATE pthread ${Boost_LIBRARIES} rt)
 
-add_executable ( get get.cpp )
-target_compile_options( get PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
-target_link_libraries( get PRIVATE pthread ${Boost_LIBRARIES} rt)
+
 
 

@@ -48,32 +48,31 @@ int main() // int argc, char *argv[])
 		return 30;
 	}
 
-  SegHeader * header = (SegHeader *)addr;
+  TopSegment * header = (TopSegment *)addr;
+  //SegHeader * header = (SegHeader *)addr;
   header->print();
 
-  char * pfill = ((char*)addr) + header->start_offset;
-  uint32_t alloc_size = header->alloc_size;
-  uint32_t next_free_offset = header->next_free_offset;
-  while( next_free_offset < alloc_size ) {
-      printf("writing byte at %p offset %lu\n",pfill, pfill - ((char*)addr)); 
-      *pfill++ = 'x'; // write a byte
-      // increment the next free offset
-      next_free_offset++;
-      // push the value to shared memory with write barrier. assumes this thread is the only writer.
-      // release semantics : readers that load/acquire next_free_offset are guaranteed to see all earlier writes from here
-      __atomic_store_n( &( header->next_free_offset ), next_free_offset, __ATOMIC_RELEASE );
+  Column * col0 = header->goc_column( "test_col.0" );
+  Column * col1 = header->goc_column( "test_col.1" );
 
-      header->print(); 
-      // wait for a bit
-      std::this_thread::sleep_for( std::chrono::seconds( 1 ));
-  } 
+  header->print();
 
-//	// place data into memory
-//	len = strlen(data) + 1;
-//	memcpy(addr, data, len);
+//  char * pfill = ((char*)addr) + header->start_offset;
+//  uint32_t alloc_size = header->alloc_size;
+//  uint32_t next_free_offset = header->next_free_offset;
+//  while( next_free_offset < alloc_size ) {
+//      printf("writing byte at %p offset %lu\n",pfill, pfill - ((char*)addr)); 
+//      *pfill++ = 'x'; // write a byte
+//      // increment the next free offset
+//      next_free_offset++;
+//      // push the value to shared memory with write barrier. assumes this thread is the only writer.
+//      // release semantics : readers that load/acquire next_free_offset are guaranteed to see all earlier writes from here
+//      __atomic_store_n( &( header->next_free_offset ), next_free_offset, __ATOMIC_RELEASE );
 //
-//	// wait for someone to read it
-//	sleep(2);
+//      header->print(); 
+//      // wait for a bit
+//      std::this_thread::sleep_for( std::chrono::seconds( 1 ));
+//  } 
 
 	// mmap cleanup
 	res = munmap(addr, STORAGE_SIZE);
@@ -82,14 +81,6 @@ int main() // int argc, char *argv[])
 		perror("munmap");
 		return 40;
 	}
-
-//	// shm_open cleanup
-//	fd = shm_unlink(STORAGE_ID);
-//	if (fd == -1)
-//	{
-//		perror("unlink");
-//		return 100;
-//	}
 
 	return 0;
 }

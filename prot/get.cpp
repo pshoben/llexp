@@ -9,15 +9,15 @@
 #define STORAGE_ID "/SHM_TEST"
 #define STORAGE_SIZE SEGMENT_SIZE
 
-int main(int argc, char *argv[])
+int main() // int argc, char *argv[])
 {
-	int res;
+	//int res;
 	int fd;
-	char data[STORAGE_SIZE];
-	pid_t pid;
+	//char data[STORAGE_SIZE];
+	//pid_t pid;
 	void *addr;
 
-	pid = getpid();
+	//pid = getpid();
 
 	// get shared memory file descriptor (NOT a file)
 	fd = shm_open(STORAGE_ID, O_RDONLY, S_IRUSR | S_IWUSR);

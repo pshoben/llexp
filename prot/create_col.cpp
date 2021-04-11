@@ -16,8 +16,8 @@ int main() // int argc, char *argv[])
 	int fd;
 	//int len;
 	pid_t pid;
-	//void *addr;
-  SegHeader * addr;
+	void *addr;
+  //SegHeader * addr;
 	char data[STORAGE_SIZE];
 
 	pid = getpid();
@@ -40,7 +40,7 @@ int main() // int argc, char *argv[])
 	}
 
 	// map shared memory to process address space
-	addr = (SegHeader *) mmap(NULL, STORAGE_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+	addr =  mmap(NULL, STORAGE_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
 	if (addr == MAP_FAILED)
 	{
 		perror("mmap");
@@ -48,13 +48,20 @@ int main() // int argc, char *argv[])
 	}
 
   // initialise the segment header
-  *addr = SegHeader{};
+  //*addr = SegHeader{};
+
+  // placement new the top segment
+
+  TopSegment * header = new ((TopSegment *)addr) TopSegment();
+  //SegHeader * header = (SegHeader *)addr;
+  header->print();
+
 
   //SegHeader{};//  STORAGE_SIZE, 
                     //sizeof( SegHeader ),
                     //sizeof( SegHeader )};
  
-  addr->print(); 
+  //addr->print(); 
 
 ////	// place data into memory
 ////	len = strlen(data) + 1;

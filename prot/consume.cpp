@@ -14,11 +14,11 @@
 
 using std::cout;
 
-int main(int argc, char *argv[])
+int main() // int argc, char *argv[])
 {
-	int res;
+	//int res;
 	int fd;
-	int len;
+	//int len;
 	pid_t pid;
 	void *addr;
 	char data[STORAGE_SIZE];
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   header->print();
 
   char * start_addr = ((char*)addr); // + header->start_offset;
-  uint32_t alloc_size = header->alloc_size;
+  //uint32_t alloc_size = header->alloc_size;
 
   // acquire/release semantics : when writer thread store/release next_free_offset, all writer writes that happened-before the store/release are visible here
   uint32_t prev_free_offset = __atomic_load_n( &( header->next_free_offset ), __ATOMIC_ACQUIRE );

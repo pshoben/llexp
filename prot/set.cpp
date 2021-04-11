@@ -9,7 +9,7 @@
 #define STORAGE_SIZE SEGMENT_SIZE
 #define DATA "Hello, World! From PID %d"
 
-int main(int argc, char *argv[])
+int main() // int argc, char *argv[])
 {
 	int res;
 	int fd;

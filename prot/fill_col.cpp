@@ -57,6 +57,13 @@ int main() // int argc, char *argv[])
 
   header->print();
 
+  uint32_t i = 0;
+  while( i < BLOCK_SIZE - 8 ) {
+      col0->append( 'x' );
+      i++;
+      header->print();
+      std::this_thread::sleep_for( std::chrono::seconds( 1 ));
+  } 
 //  char * pfill = ((char*)addr) + header->start_offset;
 //  uint32_t alloc_size = header->alloc_size;
 //  uint32_t next_free_offset = header->next_free_offset;

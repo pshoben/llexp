@@ -19,11 +19,11 @@ class ColumnMapping
 public:
     uint32_t col_id; // unique id of the column
     uint32_t segment_number; // segment number of Column struct
-    uint32_t block_number; // block number of Column struct
+    uint32_t block_offset; // offset from start of segment of the start of the block
     char name[20]; // /unique name of the column
 
     void print( int i ) {
-        cout << "ColumnMapping[" << i << "] = { " << col_id << " , " << segment_number << " , " << block_number << " , " << name << "}\n";
+        cout << "ColumnMapping[" << i << "] = { " << col_id << " , " << segment_number << " , " << block_offset << " , " << name << "}\n";
     }
 }; // sizeof = 32
 
@@ -38,6 +38,23 @@ public:
         cout << "Column[" << i << "] @" << (long)addr << " = { " << tag << " , " << next_free_index << "}\n";
     }
 
+    void append( char c ) {
+        data[ next_free_index ] = c ;
+        // single writer thread owns the column
+        uint32_t next = next_free_index+1;
+        __atomic_store_n( &next_free_index, next, __ATOMIC_RELEASE );
+    } 
+
+    void print() {
+        cout << "tag: " << tag << "\n" 
+             << "next_free_index: " << next_free_index << "\n"; 
+        for( uint32_t i=0 ; i < next_free_index ; ++i ) {
+            cout << data[i];
+        }
+        cout << "\n";
+    }
+
+
 }; // sizeof = BLOCK_SIZE
 
 
@@ -50,9 +67,9 @@ public:
     uint32_t next_free_offset= BLOCK_SIZE; // the first unwritten byte - skip the first block used for this TopSegment
     uint32_t num_columns=0; // size of columns array
 
-    ColumnMapping columns[MAX_COLUMNS];
+    ColumnMapping column_mappings[MAX_COLUMNS];
     // pad to full block
-    char padding[ BLOCK_SIZE - ( sizeof( alloc_size ) + sizeof( start_offset ) + sizeof( next_free_offset ) + sizeof( columns ) + sizeof( num_columns ))];
+    char padding[ BLOCK_SIZE - ( sizeof( alloc_size ) + sizeof( start_offset ) + sizeof( next_free_offset ) + sizeof( column_mappings ) + sizeof( num_columns ))];
 
     // only one writer thread has write access to segement so no synchronization needed
     // return UINT32_MAX on fail 
@@ -67,7 +84,8 @@ public:
         }
     } 
 
-    void print() {
+    void print() 
+    {
         //auto start_addr = this;
         //auto size = next_free_offset - start_offset;
 
@@ -75,10 +93,22 @@ public:
              << "start_offset: " << start_offset << "\n" 
              << "next_free_offset: " << next_free_offset << "\n" 
              << "num_columns = " << num_columns << "\n";
-        for( uint32_t i=0 ; i < num_columns ; ++i ) {
-            columns[i].print(i);
+        for( uint32_t i = 0 ; i < num_columns ; ++i ) {
+            column_mappings[i].print(i);
+            Column * col = get_column( i ) ;
+            col->print();
         }
- 
+    }
+
+    // get the column by index
+    Column * get_column( uint32_t i ) 
+    {
+        // if the named column exists, return its address
+        // if it doesn't exist, return null pointer
+        if( i < num_columns ) {
+             return (Column *)(char *)(((char*)this)+( column_mappings[i].block_offset ));
+        }
+        return nullptr;
     }
 
     // get or create the named column
@@ -89,9 +119,9 @@ public:
         // if it can't be created, due to out of space, return null pointer
         uint32_t i = 0 ;
         while( i < num_columns ) {
-            if( !strcmp( name, columns[i].name )) {
+            if( !strcmp( name, column_mappings[i].name )) {
                 // found the column, return its address:
-                return (Column *) ((char*)this)+( BLOCK_SIZE * columns[i].block_number );
+                return (Column *)(char *)(((char*)this)+( column_mappings[i].block_offset ));
             }
             i++;
         }
@@ -106,8 +136,8 @@ public:
         }
         
         // create the column
-        columns[i]= ColumnMapping{ i, 0, new_block_offset , '\0' };
-        strcpy( columns[i].name, name );
+        column_mappings[i]= ColumnMapping{ i, 0, new_block_offset , '\0' };
+        strcpy( column_mappings[i].name, name );
         num_columns++;
         // placement new construct the column
         Column * addr = new ( ((char*)this ) + new_block_offset ) Column();
@@ -131,12 +161,14 @@ public:
     {}
   
     void print() {
+        // print might be called from a reader thread
+        uint32_t prev_free_offset = __atomic_load_n( &( next_free_offset ), __ATOMIC_ACQUIRE );
         auto start_addr = this;
         auto size = next_free_offset - start_offset;
 
         cout << "alloc_size: " << alloc_size << "\n" 
               << "start_offset: " << start_offset << "\n" 
-              << "next_free_offset: " << next_free_offset << "\n" 
+              << "next_free_offset: " << prev_free_offset << "\n" 
               << "start address = " << start_addr << "\n"
               << "capacity = " << alloc_size << "\n"
               << "size = " << size << "\n";
@@ -148,7 +180,7 @@ public:
            char * p = ((char *)start_addr)+offset;
            cout << *p;
            //cout << offset << " : [" << *p << "]\n"; 
-        } while ( offset++ < (next_free_offset-1) );
+        } while ( offset++ < (prev_free_offset-1) );
         cout << "\n";
     }
 } ;

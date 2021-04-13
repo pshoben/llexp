@@ -75,6 +75,10 @@ add_executable ( consume consume.cpp )
 target_compile_options( consume PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( consume PRIVATE pthread ${Boost_LIBRARIES} rt)
 
+add_executable ( consume_col consume_col.cpp )
+target_compile_options( consume_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+target_link_libraries( consume_col PRIVATE pthread ${Boost_LIBRARIES} rt)
+
 
 
 

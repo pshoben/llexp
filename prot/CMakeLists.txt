@@ -11,7 +11,6 @@ add_executable ( client client.cpp )
 target_compile_options( client PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( client PRIVATE pthread ${Boost_LIBRARIES} rt)
 
-
 add_executable ( boost_ipc_vector boost_ipc_vector.cpp )
 target_compile_options( boost_ipc_vector PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( boost_ipc_vector PRIVATE pthread ${Boost_LIBRARIES} rt)
@@ -40,11 +39,6 @@ add_executable ( create create.cpp )
 target_compile_options( create PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( create PRIVATE pthread ${Boost_LIBRARIES} rt)
 
-add_executable ( create_col create_col.cpp )
-target_compile_options( create_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
-target_link_libraries( create_col PRIVATE pthread ${Boost_LIBRARIES} rt)
-
-
 add_executable ( destroy destroy.cpp )
 target_compile_options( destroy PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( destroy PRIVATE pthread ${Boost_LIBRARIES} rt)
@@ -57,28 +51,27 @@ add_executable ( get get.cpp )
 target_compile_options( get PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( get PRIVATE pthread ${Boost_LIBRARIES} rt)
 
-add_executable ( get_col get_col.cpp )
-target_compile_options( get_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
-target_link_libraries( get_col PRIVATE pthread ${Boost_LIBRARIES} rt)
-
-
 add_executable ( fill fill.cpp )
 target_compile_options( fill PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( fill PRIVATE pthread ${Boost_LIBRARIES} rt)
-
-add_executable ( fill_col fill_col.cpp )
-target_compile_options( fill_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
-target_link_libraries( fill_col PRIVATE pthread ${Boost_LIBRARIES} rt)
-
 
 add_executable ( consume consume.cpp )
 target_compile_options( consume PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
 target_link_libraries( consume PRIVATE pthread ${Boost_LIBRARIES} rt)
 
-add_executable ( consume_col consume_col.cpp )
-target_compile_options( consume_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
-target_link_libraries( consume_col PRIVATE pthread ${Boost_LIBRARIES} rt)
-
-
-
-
+#add_executable ( create_col create_col.cpp )
+#target_compile_options( create_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+#target_link_libraries( create_col PRIVATE pthread ${Boost_LIBRARIES} rt)
+#
+#add_executable ( consume_col consume_col.cpp )
+#target_compile_options( consume_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+#target_link_libraries( consume_col PRIVATE pthread ${Boost_LIBRARIES} rt)
+#
+#add_executable ( get_col get_col.cpp )
+#target_compile_options( get_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+#target_link_libraries( get_col PRIVATE pthread ${Boost_LIBRARIES} rt)
+#
+#add_executable ( fill_col fill_col.cpp )
+#target_compile_options( fill_col PRIVATE -g -O3 -Wall -Wpedantic -Wextra -Wshadow -fno-omit-frame-pointer -std=c++2a --save-temps )
+#target_link_libraries( fill_col PRIVATE pthread ${Boost_LIBRARIES} rt)
+#

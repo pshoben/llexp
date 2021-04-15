@@ -51,7 +51,7 @@ int main() // int argc, char *argv[])
   SegHeader * header = (SegHeader *)addr;
   header->print();
 
-  char * pfill = ((char*)addr) + header->start_offset;
+  char * pfill = ((char*)addr); //  + header->start_offset;
   uint32_t alloc_size = header->alloc_size;
   uint32_t next_free_offset = header->next_free_offset;
   while( next_free_offset < alloc_size ) {

@@ -13,7 +13,6 @@
 #include "common.h"
 #include <cstring>
 #include <iomanip>
-#include <chrono>
 
 using std::vector;
 using std::mutex;
@@ -28,9 +27,9 @@ bool g_do_align_to_cacheline = false;
 
 typedef struct msg_t 
 {
-    uint64_t time;
+    std::atomic<uint64_t> time;
     uint32_t counter;
-} __attribute__((packed)) msg_t;
+} msg_t;
 
 typedef struct thread_args_t {
     unsigned int this_thread_num;
@@ -107,21 +106,20 @@ void * thread_func( __attribute__((unused)) void * args )
      prev_output_msg.time = __rdtscp(&aux); 
 #endif
     prev_output_msg.counter=0;
-    *output_msg = prev_output_msg;
+    output_msg->time.store(prev_output_msg.time);
+    output_msg->counter = prev_output_msg.counter;
 
     release_mutex();
 
     msg_t current_input_msg;
 //    current_input_msg.time = prev_output_msg.time;
 
-    auto time_now = __rdtscp(&aux);
-
     while( g_running && num_reads < g_max_reads ) 
     {
         // read shared location:
-        //current_input_msg.counter = input_msg->counter;
-        //current_input_msg.time = input_msg->time;
-        current_input_msg = *input_msg;
+        current_input_msg.counter = input_msg->counter;
+        current_input_msg.time.store(input_msg->time);
+
         if( current_input_msg.counter != prev_input_msg.counter ) {
             if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
                 // some msgs have been dropped
@@ -129,10 +127,10 @@ void * thread_func( __attribute__((unused)) void * args )
             } 
             num_reads++;
 #ifdef USE_RDTSC
-            time_now = __rdtsc();
+            auto time_now = __rdtsc();
 #endif
 #ifdef USE_RDTSCP
-            time_now = __rdtscp(&aux); 
+            auto time_now = __rdtscp(&aux); 
 #endif
             int64_t diff = time_now - current_input_msg.time;
 
@@ -154,7 +152,8 @@ void * thread_func( __attribute__((unused)) void * args )
             if( running_avg > 0) {
                 sum_mean_diff += llabs(diff - running_avg);
             }
-            prev_input_msg = current_input_msg;
+            prev_input_msg.time.store(current_input_msg.time);
+            prev_input_msg.counter = current_input_msg.counter;
         }
         avg_countdown--;
         // every so often, get the average (so far)
@@ -180,18 +179,9 @@ void * thread_func( __attribute__((unused)) void * args )
      prev_output_msg.time = __rdtscp(&aux); 
 #endif
         prev_output_msg.counter++;
-        // write other shared location:
-//            if( g_verbose )
-//            {
-//                take_mutex();
-//                std::cout << sched_getcpu() << " WROTE : " << prev_output_msg.counter << "\n";
-//                release_mutex();
-//            }
 
-
-        *output_msg = prev_output_msg;
-        //output_msg->time = prev_output_msg.time;
-        //output_msg->counter = prev_output_msg.counter;
+        output_msg->time.store(prev_output_msg.time);
+        output_msg->counter = prev_output_msg.counter;
     }
 
     take_mutex();
@@ -206,6 +196,7 @@ void * thread_func( __attribute__((unused)) void * args )
     //<<  " | mad (cyc) | mad (ns) |\n";
 
     std::cout << std::fixed << std::setprecision(1);// << std::setw(10); 
+    std::cout << std::setw(10) << std::setfill(' ') ;
 
     std::cout << "| " << std::setw(9) << option;
   
@@ -287,7 +278,7 @@ int main(int argc, char * const * argv)
   size_t alloc_size = align_size * rounded_blocks;
   g_thread_input_blocks = (char *) aligned_alloc( align_size, alloc_size ); 
   if( g_verbose ) {
-      printf("aligned_alloc( %lu, %u * %lu -> %lu rounded) returned %p\n", align_size, g_num_threads, g_block_size, alloc_size , (void*)g_thread_input_blocks );
+      printf("aligned_alloc( %lu, %u * %lu -> %lu rounded) returned %p\n", align_size, g_num_threads, g_block_size, alloc_size , g_thread_input_blocks );
   }
 
   memset( g_thread_input_blocks, 0, g_num_threads * g_block_size );

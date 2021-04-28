@@ -13,7 +13,6 @@
 #include "common.h"
 #include <cstring>
 #include <iomanip>
-#include <chrono>
 
 using std::vector;
 using std::mutex;
@@ -42,9 +41,10 @@ thread_args_t g_thread_args[8];
 
 std::size_t g_cacheline_size = 64;
 std::size_t g_start_block_size = sizeof( msg_t );
-std::size_t g_block_step = 0;
+std::size_t g_block_step = 13;
 std::size_t g_block_size = 0; //  = g_start_block_size + (g_block_step * 4); // 64; // cache line size
 char * g_thread_input_blocks; // array of block size, one per thread
+int g_slot_size_pow2 = 6; // 2^6 = 64 ns slots
 
 std::mutex g_mutex;
 
@@ -66,14 +66,11 @@ void * thread_measure_nanos( __attribute__((unused)) void * args )
 
 void * thread_func( __attribute__((unused)) void * args ) 
 {
-#ifdef USE_RDTSC
-    auto option = "rdtsc";
-#endif
-#ifdef USE_RDTSCP
-    auto option = "rdtscp";
+    auto option = "wait";
     unsigned int aux;
-#endif
 
+    // if this_thread_num is even, this is the 'starter thread' - it will write to its output location after a certain amount of time has passed
+    // the other thread will wait until its input changes before acting
 
     thread_args_t thread_args = *((thread_args_t *) args);
     msg_t * input_msg = (msg_t *) &( g_thread_input_blocks [(thread_args.this_thread_num-1) * g_block_size]);
@@ -82,9 +79,7 @@ void * thread_func( __attribute__((unused)) void * args )
     msg_t prev_input_msg { 0, 0 };
     msg_t prev_output_msg { 0, 0 };
      
-    //auto prev = __rdtsc();
-
-    uint64_t num_reads = 0;
+    uint64_t num_reads = 1;
     uint64_t dropped = 0;
     int64_t sum_diff = 0; 
     int64_t sum_mean_diff = 0; 
@@ -93,105 +88,136 @@ void * thread_func( __attribute__((unused)) void * args )
     int64_t running_avg = 0;
     int avg_countdown = 30000000;
 
+    bool is_starter_thread = (thread_args.this_thread_num == 1);
+
     take_mutex();
     if( g_verbose )
     {
         pid_t tid = syscall( __NR_gettid );
+        std::cout << " thread num " << thread_args.this_thread_num << " is starter thread? " << ((is_starter_thread)?"true":"false") << "\n";
+
         std::cout << option << " Thread ID " << tid << " on CPU " << sched_getcpu() << " - num " << thread_args.this_thread_num << " writing to " << thread_args.write_to_thread_num << "\n";
         printf("%s Thread ID %u on CPU %u input msg %p output msg %p separated by %ld bytes\n", option, tid, sched_getcpu(), (void*)input_msg, (void*)output_msg, (int64_t)output_msg-(int64_t)input_msg);
     }
-#ifdef USE_RDTSC
-     prev_output_msg.time = __rdtsc();
-#endif
-#ifdef USE_RDTSCP
-     prev_output_msg.time = __rdtscp(&aux); 
-#endif
-    prev_output_msg.counter=0;
+
+    uint64_t time_now = __rdtscp(&aux);
+    uint64_t prev_slot_num = time_now >> g_slot_size_pow2; 
+    //auto prev_time = time_now;
+
+    prev_output_msg.time = time_now;
+    prev_output_msg.counter=1;
+    prev_input_msg = prev_output_msg;
+
     *output_msg = prev_output_msg;
+    //__builtin_prefetch( output_msg, 1/*for write*/,  0 /* no temporal locality*/ );
 
     release_mutex();
 
     msg_t current_input_msg;
-//    current_input_msg.time = prev_output_msg.time;
-
-    auto time_now = __rdtscp(&aux);
 
     while( g_running && num_reads < g_max_reads ) 
     {
-        // read shared location:
-        //current_input_msg.counter = input_msg->counter;
-        //current_input_msg.time = input_msg->time;
-        current_input_msg = *input_msg;
-        if( current_input_msg.counter != prev_input_msg.counter ) {
-            if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
-                // some msgs have been dropped
-                dropped += ((prev_input_msg.counter - current_input_msg.counter) - 1);
-            } 
-            num_reads++;
-#ifdef USE_RDTSC
-            time_now = __rdtsc();
-#endif
-#ifdef USE_RDTSCP
-            time_now = __rdtscp(&aux); 
-#endif
-            int64_t diff = time_now - current_input_msg.time;
+        // thread reads on a schedule:
+        time_now = __rdtscp(&aux); 
+        uint64_t slot_num = time_now >> g_slot_size_pow2;
+        bool got_a_slot = slot_num & 1;
 
+        if(( got_a_slot == is_starter_thread ) && (slot_num > prev_slot_num )) // 2 threads take alternate slots 
+        {
+            // next quantum
+            prev_slot_num = slot_num;
             if( g_verbose )
             {
-                take_mutex();
-                std::cout << sched_getcpu() << " READ : " << current_input_msg.counter << " " << diff << " from " << time_now << " - " << current_input_msg.time << "\n";
-                release_mutex();
+                 take_mutex();
+                 std::cout << sched_getcpu() << " got slot " << slot_num <<  " at time " << time_now << "\n";
+                 release_mutex();
             }
+            //prev_time = time_now;
 
+            // read shared location:
+            current_input_msg.counter = input_msg->counter;
+            current_input_msg.time = input_msg->time;
+            //current_input_msg = *input_msg;
 
-            if( diff < min_diff ) {
-                 min_diff = diff;
-            }   
-            if( diff > max_diff ) {
-                 max_diff = diff;
-            }    
-            sum_diff += diff;
-            if( running_avg > 0) {
-                sum_mean_diff += llabs(diff - running_avg);
-            }
-            prev_input_msg = current_input_msg;
+            // prefetch the next write while doing the pre-write work:
+            __builtin_prefetch( output_msg, 1/*for write*/,  0 /* no temporal locality*/ );
+ 
+
+//                if( g_verbose )
+//                {
+//                     take_mutex();
+//                     std::cout << sched_getcpu() << " current input " << current_input_msg.counter <<  " prev in " << prev_input_msg.counter << "\n";
+//                     release_mutex();
+//                }
+    
+            if( current_input_msg.counter != prev_input_msg.counter ) 
+            {
+               // new input has been received
+                if( g_verbose )
+                {
+                     take_mutex();
+                     std::cout << sched_getcpu() << " new current input " << current_input_msg.counter <<  " prev in " << prev_input_msg.counter << "\n";
+                     release_mutex();
+                }
+ 
+                num_reads++;
+
+                if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
+                    // some msgs have been dropped
+                    dropped += ((prev_input_msg.counter - current_input_msg.counter) - 1);
+                } 
+
+                time_now = __rdtscp(&aux); 
+                int64_t diff = time_now - current_input_msg.time;
+                prev_input_msg = current_input_msg;
+ 
+//                if( g_verbose )
+//                {
+//                    take_mutex();
+//                    std::cout << sched_getcpu() << " READ : " << current_input_msg.counter << " " << diff << " from " << time_now << " - " << current_input_msg.time << "\n";
+//                    release_mutex();
+//                }
+  
+                if( diff < min_diff ) {
+                     min_diff = diff;
+                }   
+                if( diff > max_diff ) {
+                     max_diff = diff;
+                }    
+                sum_diff += diff;
+                if( running_avg > 0) {
+                    sum_mean_diff += llabs(diff - running_avg);
+                }
+
+               avg_countdown--;
+               // every so often, get the average (so far)
+               if( avg_countdown == 0 ) {
+        
+                   running_avg = sum_diff / num_reads;
+                   avg_countdown = 30000000;
+       
+                   if( g_verbose )
+                   {
+                       take_mutex();
+                       //double drop_pct = (double) dropped / ((double) dropped + (double) num_reads) * 100.0;
+                       std::cout << " | cpu " << sched_getcpu() << " | count " << num_reads << " | avg (cyc) " << (sum_diff / num_reads) << " | mad (cyc) " << (sum_mean_diff / num_reads) << "\n";
+                       release_mutex();
+                   }
+               } 
+
+           }
+ 
+           // write a new timestamp on the output location:
+    
+           prev_output_msg.time = __rdtscp(&aux); 
+           prev_output_msg.counter++;
+           *output_msg = prev_output_msg;
+           //_cldemote((void *)output_msg );
+
+           // prefetch the next read while doing the post-write work:
+           __builtin_prefetch( input_msg, 0/*for read*/, 0  /* no temporal locality*/ );
+        
         }
-        avg_countdown--;
-        // every so often, get the average (so far)
-        if( avg_countdown == 0 ) {
-
-            running_avg = sum_diff / num_reads;
-            avg_countdown = 30000000;
-
-            if( g_verbose )
-            {
-                take_mutex();
-                //double drop_pct = (double) dropped / ((double) dropped + (double) num_reads) * 100.0;
-                std::cout << " | cpu " << sched_getcpu() << " | count " << num_reads << " | avg (cyc) " << (sum_diff / num_reads) << " | mad (cyc) " << (sum_mean_diff / num_reads) << "\n";
-                release_mutex();
-            }
-        } 
-//        prev = time;
-        // regardless of read status, write every loop :
-#ifdef USE_RDTSC
-     prev_output_msg.time = __rdtsc(); // take another timestamp just before writing
-#endif
-#ifdef USE_RDTSCP
-     prev_output_msg.time = __rdtscp(&aux); 
-#endif
-        prev_output_msg.counter++;
-        // write other shared location:
-//            if( g_verbose )
-//            {
-//                take_mutex();
-//                std::cout << sched_getcpu() << " WROTE : " << prev_output_msg.counter << "\n";
-//                release_mutex();
-//            }
-
-
-        *output_msg = prev_output_msg;
-        //output_msg->time = prev_output_msg.time;
-        //output_msg->counter = prev_output_msg.counter;
     }
 
     take_mutex();
@@ -206,11 +232,12 @@ void * thread_func( __attribute__((unused)) void * args )
     //<<  " | mad (cyc) | mad (ns) |\n";
 
     std::cout << std::fixed << std::setprecision(1);// << std::setw(10); 
+    //std::cout << std::setw(10) << std::setfill(' ') ;
 
     std::cout << "| " << std::setw(9) << option;
   
     std::cout << " | " << sched_getcpu();
-    std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_step;
+    std::cout << " | " << std::setw(10) << std::setfill(' ') << g_slot_size_pow2;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_size;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << num_reads;
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << dropped;
@@ -237,7 +264,7 @@ void * thread_func( __attribute__((unused)) void * args )
 int main(int argc, char * const * argv) 
 {
   char c;
-  while ((c = getopt (argc, argv, "avs:")) != -1) {
+  while ((c = getopt (argc, argv, "avw:s:")) != -1) {
     switch (c)
     {
       case 'a':
@@ -246,6 +273,11 @@ int main(int argc, char * const * argv)
       case 'v':
         g_verbose = true;
         break;
+      case 'w':
+      {
+        g_slot_size_pow2 = atoi(optarg);
+        break;
+      } 
       case 's':
       {
         g_block_step = atoi(optarg);
@@ -253,7 +285,7 @@ int main(int argc, char * const * argv)
         break;
       }
       default:
-        printf("usage: (-a (=align)) (-v (=verbose)) (-s block-step)\n");
+        printf("usage: (-a (=align)) (-v (=verbose)) (-s block-step) (-w slot size in pow2 nanos )\n");
         exit(0);
      }
   }
@@ -287,7 +319,7 @@ int main(int argc, char * const * argv)
   size_t alloc_size = align_size * rounded_blocks;
   g_thread_input_blocks = (char *) aligned_alloc( align_size, alloc_size ); 
   if( g_verbose ) {
-      printf("aligned_alloc( %lu, %u * %lu -> %lu rounded) returned %p\n", align_size, g_num_threads, g_block_size, alloc_size , (void*)g_thread_input_blocks );
+      printf("aligned_alloc( %lu, %u * %lu -> %lu rounded) returned %p\n", align_size, g_num_threads, g_block_size, alloc_size , g_thread_input_blocks );
   }
 
   memset( g_thread_input_blocks, 0, g_num_threads * g_block_size );

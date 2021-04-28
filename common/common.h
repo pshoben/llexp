@@ -13,6 +13,13 @@ typedef struct TimespecPair {
   Timespec read_time; // = {0,0};
 } TimespecPair;
 
+typedef struct TimespecPair64 {
+  Timespec write_time; // = {0,0};
+  Timespec read_time; // = {0,0};
+  char padding[64-(sizeof(Timespec)*2)];
+} TimespecPair64;
+
+
 inline long timespec_diff_ns( struct timespec start_time, struct timespec end_time )
 {
   // return total difference in nanoseconds between start time and end time (combining the seconds and ns members into a single value)

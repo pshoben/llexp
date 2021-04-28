@@ -13,7 +13,6 @@
 #include "common.h"
 #include <cstring>
 #include <iomanip>
-#include <chrono>
 
 using std::vector;
 using std::mutex;
@@ -66,13 +65,8 @@ void * thread_measure_nanos( __attribute__((unused)) void * args )
 
 void * thread_func( __attribute__((unused)) void * args ) 
 {
-#ifdef USE_RDTSC
-    auto option = "rdtsc";
-#endif
-#ifdef USE_RDTSCP
-    auto option = "rdtscp";
+    auto option = "pftch";
     unsigned int aux;
-#endif
 
 
     thread_args_t thread_args = *((thread_args_t *) args);
@@ -92,6 +86,7 @@ void * thread_func( __attribute__((unused)) void * args )
     int64_t max_diff = 0 ;
     int64_t running_avg = 0;
     int avg_countdown = 30000000;
+    int num_outliers = 0;
 
     take_mutex();
     if( g_verbose )
@@ -100,12 +95,7 @@ void * thread_func( __attribute__((unused)) void * args )
         std::cout << option << " Thread ID " << tid << " on CPU " << sched_getcpu() << " - num " << thread_args.this_thread_num << " writing to " << thread_args.write_to_thread_num << "\n";
         printf("%s Thread ID %u on CPU %u input msg %p output msg %p separated by %ld bytes\n", option, tid, sched_getcpu(), (void*)input_msg, (void*)output_msg, (int64_t)output_msg-(int64_t)input_msg);
     }
-#ifdef USE_RDTSC
-     prev_output_msg.time = __rdtsc();
-#endif
-#ifdef USE_RDTSCP
      prev_output_msg.time = __rdtscp(&aux); 
-#endif
     prev_output_msg.counter=0;
     *output_msg = prev_output_msg;
 
@@ -114,26 +104,39 @@ void * thread_func( __attribute__((unused)) void * args )
     msg_t current_input_msg;
 //    current_input_msg.time = prev_output_msg.time;
 
-    auto time_now = __rdtscp(&aux);
+    // split the threads so that they start N clock ticks apart
+    auto time_now = __rdtscp(&aux); 
+    bool is_starter_thread = (thread_args.this_thread_num == 1);
+    if( !is_starter_thread ) {
+       // delay for N x 15 ns
+       for(int i = 0 ; i < 2 ; i++ ) {
+           time_now = __rdtscp(&aux); 
+       }
+//       //time_now = __rdtscp(&aux); 
+//       //time_now = __rdtscp(&aux); 
+//       //time_now = __rdtscp(&aux); 
+    }
 
     while( g_running && num_reads < g_max_reads ) 
     {
+        // delay by 10ns
+        //time_now = __rdtscp(&aux); 
+
         // read shared location:
         //current_input_msg.counter = input_msg->counter;
         //current_input_msg.time = input_msg->time;
         current_input_msg = *input_msg;
+
+        // prefetch the next write while doing the pre-write work:
+        //__builtin_prefetch( output_msg, 1/*for write*/,  0 /* no temporal locality*/ );
+
+
         if( current_input_msg.counter != prev_input_msg.counter ) {
             if( current_input_msg.counter > ( prev_input_msg.counter+1 )) {
                 // some msgs have been dropped
                 dropped += ((prev_input_msg.counter - current_input_msg.counter) - 1);
             } 
-            num_reads++;
-#ifdef USE_RDTSC
-            time_now = __rdtsc();
-#endif
-#ifdef USE_RDTSCP
             time_now = __rdtscp(&aux); 
-#endif
             int64_t diff = time_now - current_input_msg.time;
 
             if( g_verbose )
@@ -143,16 +146,24 @@ void * thread_func( __attribute__((unused)) void * args )
                 release_mutex();
             }
 
+            // exclude the 1st million reads from stats
+            if( avg_countdown < (30000000-1000000)) {
 
-            if( diff < min_diff ) {
-                 min_diff = diff;
-            }   
-            if( diff > max_diff ) {
-                 max_diff = diff;
-            }    
-            sum_diff += diff;
-            if( running_avg > 0) {
-                sum_mean_diff += llabs(diff - running_avg);
+                num_reads++;
+
+                if( diff > 1000 ) {
+                    num_outliers++;
+                }
+                if( diff < min_diff ) {
+                     min_diff = diff;
+                }   
+                if( diff > max_diff ) {
+                     max_diff = diff;
+                }    
+                sum_diff += diff;
+                if( running_avg > 0) {
+                    sum_mean_diff += llabs(diff - running_avg);
+                }
             }
             prev_input_msg = current_input_msg;
         }
@@ -173,12 +184,7 @@ void * thread_func( __attribute__((unused)) void * args )
         } 
 //        prev = time;
         // regardless of read status, write every loop :
-#ifdef USE_RDTSC
-     prev_output_msg.time = __rdtsc(); // take another timestamp just before writing
-#endif
-#ifdef USE_RDTSCP
-     prev_output_msg.time = __rdtscp(&aux); 
-#endif
+        prev_output_msg.time = __rdtscp(&aux); 
         prev_output_msg.counter++;
         // write other shared location:
 //            if( g_verbose )
@@ -190,6 +196,10 @@ void * thread_func( __attribute__((unused)) void * args )
 
 
         *output_msg = prev_output_msg;
+        // prefetch the next read while doing the post-read work:
+        //__builtin_prefetch( input_msg, 0/*for read*/, 0  /* no temporal locality*/ );
+
+        //_cldemote( (void *)output_msg);
         //output_msg->time = prev_output_msg.time;
         //output_msg->counter = prev_output_msg.counter;
     }
@@ -213,6 +223,8 @@ void * thread_func( __attribute__((unused)) void * args )
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_step;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << g_block_size;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << num_reads;
+    std::cout << " | " << std::setw(10) << std::setfill(' ') << num_outliers;
+
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << dropped;
     //std::cout << " | " << std::setw(10) << std::setfill(' ') << std::setprecision(2) << drop_pct;
     std::cout << " | " << std::setw(10) << std::setfill(' ') << avg_cyc;
@@ -287,7 +299,7 @@ int main(int argc, char * const * argv)
   size_t alloc_size = align_size * rounded_blocks;
   g_thread_input_blocks = (char *) aligned_alloc( align_size, alloc_size ); 
   if( g_verbose ) {
-      printf("aligned_alloc( %lu, %u * %lu -> %lu rounded) returned %p\n", align_size, g_num_threads, g_block_size, alloc_size , (void*)g_thread_input_blocks );
+      printf("aligned_alloc( %lu, %u * %lu -> %lu rounded) returned %p\n", align_size, g_num_threads, g_block_size, alloc_size , (void *)g_thread_input_blocks );
   }
 
   memset( g_thread_input_blocks, 0, g_num_threads * g_block_size );

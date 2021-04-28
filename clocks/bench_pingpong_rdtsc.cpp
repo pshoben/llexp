@@ -66,14 +66,7 @@ void * thread_measure_nanos( __attribute__((unused)) void * args )
 
 void * thread_func( __attribute__((unused)) void * args ) 
 {
-#ifdef USE_RDTSC
     auto option = "rdtsc";
-#endif
-#ifdef USE_RDTSCP
-    auto option = "rdtscp";
-    unsigned int aux;
-#endif
-
 
     thread_args_t thread_args = *((thread_args_t *) args);
     msg_t * input_msg = (msg_t *) &( g_thread_input_blocks [(thread_args.this_thread_num-1) * g_block_size]);
@@ -100,12 +93,7 @@ void * thread_func( __attribute__((unused)) void * args )
         std::cout << option << " Thread ID " << tid << " on CPU " << sched_getcpu() << " - num " << thread_args.this_thread_num << " writing to " << thread_args.write_to_thread_num << "\n";
         printf("%s Thread ID %u on CPU %u input msg %p output msg %p separated by %ld bytes\n", option, tid, sched_getcpu(), (void*)input_msg, (void*)output_msg, (int64_t)output_msg-(int64_t)input_msg);
     }
-#ifdef USE_RDTSC
-     prev_output_msg.time = __rdtsc();
-#endif
-#ifdef USE_RDTSCP
-     prev_output_msg.time = __rdtscp(&aux); 
-#endif
+    prev_output_msg.time = __rdtsc(); 
     prev_output_msg.counter=0;
     *output_msg = prev_output_msg;
 
@@ -114,7 +102,7 @@ void * thread_func( __attribute__((unused)) void * args )
     msg_t current_input_msg;
 //    current_input_msg.time = prev_output_msg.time;
 
-    auto time_now = __rdtscp(&aux);
+    auto time_now = __rdtsc();
 
     while( g_running && num_reads < g_max_reads ) 
     {
@@ -128,12 +116,7 @@ void * thread_func( __attribute__((unused)) void * args )
                 dropped += ((prev_input_msg.counter - current_input_msg.counter) - 1);
             } 
             num_reads++;
-#ifdef USE_RDTSC
-            time_now = __rdtsc();
-#endif
-#ifdef USE_RDTSCP
-            time_now = __rdtscp(&aux); 
-#endif
+            time_now = __rdtsc(); 
             int64_t diff = time_now - current_input_msg.time;
 
             if( g_verbose )
@@ -173,12 +156,7 @@ void * thread_func( __attribute__((unused)) void * args )
         } 
 //        prev = time;
         // regardless of read status, write every loop :
-#ifdef USE_RDTSC
-     prev_output_msg.time = __rdtsc(); // take another timestamp just before writing
-#endif
-#ifdef USE_RDTSCP
-     prev_output_msg.time = __rdtscp(&aux); 
-#endif
+        prev_output_msg.time = __rdtsc(); 
         prev_output_msg.counter++;
         // write other shared location:
 //            if( g_verbose )

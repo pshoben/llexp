@@ -19,6 +19,7 @@ namespace llutils {
 		RuleEntry(bool p_is_string, string p_val) : is_string(p_is_string), val(p_val) { /*print();*/ }
 		bool is_string; // true if val is a leaf string
 		string val; // q-name/VB
+		int pos; // earley position
 		void print() {
 			cout << (this->is_string ? "\"" : "") << this->val << (this->is_string ? "\"" : "") << " ";
 		}

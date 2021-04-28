@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include "arena_pool.h"
+#include "parser.h"
 
 using std::vector;
 using std::unordered_map;
@@ -14,6 +15,7 @@ using std::istringstream;
 
 using llutils::Rule;
 using llutils::ArenaPool;
+
 
 namespace llutils {
 
@@ -176,5 +178,5 @@ int main(void)
 	uint32_t start_index = rule_pool.find_rule_index("S");
 	cout << "got rule index for S : " << start_index << "\n";
 	rule_pool.print_node(start_index, "");
-	cout << "done\n";
+
 }
